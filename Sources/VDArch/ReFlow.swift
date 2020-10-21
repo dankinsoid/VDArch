@@ -17,6 +17,8 @@ public final class FlowCoordinator {
 	private let stepper = PublishRelay<StepAction>()
 	private let disposeBag = DisposeBag()
 	
+	public init() {}
+	
 	public func middleware<State>(as: State.Type) -> Middleware<State> {
 		middleware()
 	}
