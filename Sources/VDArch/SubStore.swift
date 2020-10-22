@@ -12,7 +12,7 @@ final class Substore<ParentState: StateType, State: StateType>: Store<State> {
 	
 	let parent: Store<ParentState>
 	let lens: Lens<ParentState, State>
-	override var state: State! {
+	override var state: State {
 		lens.get(parent.state)
 	}
 	
