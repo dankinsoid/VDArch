@@ -70,9 +70,9 @@ open class Store<State: StateType>: ConnectableStoreType {
 		automaticallySkipsRepeats: Bool = true
 	) {
 		self.subscriptionsAutomaticallySkipRepeats = automaticallySkipsRepeats
-		self.reducers = [UUID(): reducer]
 		self.middleware = middleware
 		self.state = state
+		_ = self.connect(reducer: reducer)
 	}
 	
 	public init(
