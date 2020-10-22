@@ -114,9 +114,7 @@ open class Store<State: StateType>: ConnectableStoreType {
 		
 		subscriptions.update(with: subscriptionBox)
 		
-		if let state = self.state {
-			originalSubscription.newValues(oldState: nil, newState: state)
-		}
+		originalSubscription.newValues(oldState: nil, newState: state)
 	}
 	
 	open func subscribe<S: StoreSubscriber>(_ subscriber: S) where S.StoreSubscriberStateType == State {
