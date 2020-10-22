@@ -20,7 +20,7 @@ open class Store<State: StateType>: ConnectableStoreType {
 	
 	typealias SubscriptionType = SubscriptionBox<State>
 	
-	private(set) open var state: State! {
+	private(set) open var state: State {
 		didSet {
 			subscriptions.forEach {
 				if $0.subscriber == nil {
@@ -65,19 +65,14 @@ open class Store<State: StateType>: ConnectableStoreType {
 	///   implements `Equatable`. Defaults to `true`.
 	public init(
 		reducer: @escaping Reducer<State>,
-		state: State?,
+		state: State,
 		middleware: [Middleware<State>] = [],
 		automaticallySkipsRepeats: Bool = true
 	) {
 		self.subscriptionsAutomaticallySkipRepeats = automaticallySkipsRepeats
 		self.reducers = [UUID(): reducer]
 		self.middleware = middleware
-		
-		if let state = state {
-			self.state = state
-		} else {
-			dispatch(ReSwiftInit())
-		}
+		self.state = state
 	}
 	
 	public init(
