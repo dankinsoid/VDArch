@@ -56,6 +56,10 @@ extension ViewProtocol {
 		bind(viewModel: viewModel, in: store, getter: { $0[keyPath: keyPath] })
 	}
 	
+	public func bind<VM: ViewModelProtocol, State: StateType>(viewModel: VM, in store: Store<State>, at keyPath: KeyPath<State, VM.ModelState?>, or value: VM.ModelState) -> Disposable where VM.ViewState == Properties, VM.ViewEvents == Events {
+		bind(viewModel: viewModel, in: store, getter: { $0[keyPath: keyPath] ?? value })
+	}
+	
 	public func bind<VM: ViewModelProtocol, State: StateType>(viewModel: VM, in store: Store<State>) -> Disposable where VM.ViewState == Properties, VM.ViewEvents == Events, VM.ModelState == State {
 		bind(viewModel: viewModel, in: store, getter: { $0 })
 	}
