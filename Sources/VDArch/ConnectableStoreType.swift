@@ -39,6 +39,25 @@ extension ConnectableStoreType {
 		connect(reducer: reducer.asReducer())
 	}
 	
+	public func connect<Reducer: ReducerConvertible, Key: Hashable>(reducer: Reducer, at keyPath: WritableKeyPath<State, [Key: Reducer.ReducerStateType]?>, key: Key, or value: Reducer.ReducerStateType) -> ReducerDisconnecter {
+		connect(
+			reducer: reducer,
+			lens: Lens(
+				get: {
+					$0[keyPath: keyPath]?[key] ?? value
+				},
+				set: {
+					var result = $0
+					if result[keyPath: keyPath] == nil {
+						result[keyPath: keyPath] = [:]
+					}
+					result[keyPath: keyPath]?[key] = $1
+					return result
+				}
+			)
+		)
+	}
+	
 }
 
 public struct ReducerDisconnecter {
