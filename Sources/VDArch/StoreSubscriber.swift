@@ -6,15 +6,22 @@
 //  Copyright © 2020 Daniil. All rights reserved.
 //
 
-public protocol AnyStoreSubscriber: AnyObject, Hashable {
+public protocol AnyStoreSubscriber: AnyObject {
 	// swiftlint:disable:next identifier_name
 	func _newState(state: Any)
 }
 
-extension AnyStoreSubscriber {
-	public func hash(into hasher: inout Hasher) {
-		ObjectIdentifier(self).hash(into: &hasher)
+struct StoreSubscriberHashable: Hashable {
+	var subscriber: AnyStoreSubscriber
+	
+	func hash(into hasher: inout Hasher) {
+		ObjectIdentifier(subscriber).hash(into: &hasher)
 	}
+	
+	static func ==(_ lhs: StoreSubscriberHashable, _ rhs: StoreSubscriberHashable) -> Bool {
+		lhs.subscriber === rhs.subscriber
+	}
+	
 }
 
 public protocol StoreSubscriber: AnyStoreSubscriber {

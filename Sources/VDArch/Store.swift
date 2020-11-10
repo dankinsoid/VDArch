@@ -35,7 +35,7 @@ open class Store<State: StateType>: ConnectableStoreType {
 	private(set) open lazy var dispatchFunction: DispatchFunction! = createDispatchFunction()
 	
 	private var subscriptions: Set<SubscriptionType> = []
-	private var actionSubscriptions: Set<AnyStoreSubscriber> = []
+	private var actionSubscriptions: Set<StoreSubscriberHashable> = []
 	private var reducers: [UUID: Reducer<State>] = [:]
 	private var ids: [UUID] = []
 	private let lock = NSRecursiveLock()
@@ -123,7 +123,7 @@ open class Store<State: StateType>: ConnectableStoreType {
 	}
 	
 	private func _observeActions(_ subscriber: AnyStoreSubscriber) {
-		actionSubscriptions.update(with: subscriber)
+		actionSubscriptions.update(with: StoreSubscriberHashable(subscriber: subscriber))
 	}
 	
 	open func observeActions<S: StoreSubscriber>(_ subscriber: S) where S.StoreSubscriberStateType: Action {
@@ -170,7 +170,7 @@ open class Store<State: StateType>: ConnectableStoreType {
 			subscriptions.remove(at: index)
 		}
 		#endif
-		actionSubscriptions.remove(subscriber)
+		actionSubscriptions.remove(StoreSubscriberHashable(subscriber: subscriber))
 	}
 	
 	// swiftlint:disable:next identifier_name
