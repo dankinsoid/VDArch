@@ -35,6 +35,7 @@ open class Store<State: StateType>: ConnectableStoreType {
 	private(set) open lazy var dispatchFunction: DispatchFunction! = createDispatchFunction()
 	
 	private var subscriptions: Set<SubscriptionType> = []
+	private var actionSubscriptions: Set<AnyStoreSubscriber> = []
 	private var reducers: [UUID: Reducer<State>] = [:]
 	private var ids: [UUID] = []
 	private let lock = NSRecursiveLock()
@@ -117,6 +118,18 @@ open class Store<State: StateType>: ConnectableStoreType {
 		originalSubscription.newValues(oldState: nil, newState: state)
 	}
 	
+	open func observeActions<S: StoreSubscriber>(_ subscriber: S) where S.StoreSubscriberStateType == Action {
+		_observeActions(subscriber)
+	}
+	
+	private func _observeActions(_ subscriber: AnyStoreSubscriber) {
+		actionSubscriptions.update(with: subscriber)
+	}
+	
+	open func observeActions<S: StoreSubscriber>(_ subscriber: S) where S.StoreSubscriberStateType: Action {
+		_observeActions(subscriber)
+	}
+	
 	open func subscribe<S: StoreSubscriber>(_ subscriber: S) where S.StoreSubscriberStateType == State {
 		_subscribe(subscriber, originalSubscription: Subscription(), transformedSubscription: nil)
 	}
@@ -157,6 +170,7 @@ open class Store<State: StateType>: ConnectableStoreType {
 			subscriptions.remove(at: index)
 		}
 		#endif
+		actionSubscriptions.remove(subscriber)
 	}
 	
 	// swiftlint:disable:next identifier_name
@@ -175,6 +189,10 @@ open class Store<State: StateType>: ConnectableStoreType {
 		isDispatching = false
 		
 		state = newState
+		
+		actionSubscriptions.forEach {
+			$0._newState(state: action)
+		}
 	}
 	
 	open func dispatch(_ action: Action) {

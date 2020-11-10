@@ -40,6 +40,18 @@ public struct RxStore<Store: StoreType>: ObservableType {
 		}
 	}
 	
+	public var actions: Observable<Action> {
+		Observable.create { observer in
+			var subscriber: RxStoreSubscriber<Action>? = RxStoreSubscriber()
+			let disposable1 = subscriber?.subject.subscribe(observer) ?? Disposables.create()
+			base.observeActions(subscriber!)
+			let disposable2 = Disposables.create {
+				subscriber = nil
+			}
+			return Disposables.create(disposable1, disposable2)
+		}
+	}
+	
 	public init(_ store: Store) {
 		base = store
 	}
@@ -60,7 +72,7 @@ public struct RxStore<Store: StoreType>: ObservableType {
 	
 }
 
-fileprivate final class RxStoreSubscriber<Element: StateType>: StoreSubscriber {
+fileprivate final class RxStoreSubscriber<Element>: StoreSubscriber {
 	let subject = PublishSubject<Element>()
 	
 	public func newState(state: Element) {

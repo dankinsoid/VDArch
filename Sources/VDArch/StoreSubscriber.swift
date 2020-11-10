@@ -6,9 +6,15 @@
 //  Copyright © 2020 Daniil. All rights reserved.
 //
 
-public protocol AnyStoreSubscriber: AnyObject {
+public protocol AnyStoreSubscriber: AnyObject, Hashable {
 	// swiftlint:disable:next identifier_name
 	func _newState(state: Any)
+}
+
+extension AnyStoreSubscriber {
+	public func hash(into hasher: inout Hasher) {
+		ObjectIdentifier(self).hash(into: &hasher)
+	}
 }
 
 public protocol StoreSubscriber: AnyStoreSubscriber {
