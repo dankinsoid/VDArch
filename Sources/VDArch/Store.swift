@@ -191,7 +191,7 @@ open class Store<State: StateType>: ConnectableStoreType {
 		state = newState
 		
 		actionSubscriptions.forEach {
-			$0._newState(state: action)
+			$0.subscriber._newState(state: action)
 		}
 	}
 	

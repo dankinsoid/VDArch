@@ -18,7 +18,7 @@ import PackageDescription
 let package = Package(
   name: "SomeProject",
   dependencies: [
-    .package(url: "https://github.com/dankinsoid/VDArch.git", from: "1.0.11")
+    .package(url: "https://github.com/dankinsoid/VDArch.git", from: "1.0.12")
   ],
   targets: [
     .target(name: "SomeProject", dependencies: ["VDArch"])
