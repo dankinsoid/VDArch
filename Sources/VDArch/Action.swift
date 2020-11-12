@@ -15,3 +15,7 @@ public protocol Action { }
 public struct ReSwiftInit: Action {
 	public init() {}
 }
+
+public struct EmptyAction: Action {
+	public init() {}
+}
