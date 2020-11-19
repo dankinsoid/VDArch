@@ -18,6 +18,7 @@ let package = Package(
     dependencies: [
         .package(url: "https://github.com/ReactiveX/RxSwift.git", from: "5.1.1"),
         .package(url: "https://github.com/dankinsoid/VDKit.git", from: "1.0.12"),
+        .package(url: "https://github.com/dankinsoid/VDFlow.git", from: "1.0.2"),
         .package(url: "https://github.com/dankinsoid/RxOperators.git", from: "1.0.22")
     ],
     targets: [
@@ -25,7 +26,7 @@ let package = Package(
         // Targets can depend on other targets in this package, and on products in packages which this package depends on.
         .target(
             name: "VDArch",
-            dependencies: ["VDKit", "RxSwift", "RxOperators"]
+            dependencies: ["VDKit", "VDFlow" ,"RxSwift", "RxOperators"]
         ),
         .testTarget(
             name: "VDArchTests",

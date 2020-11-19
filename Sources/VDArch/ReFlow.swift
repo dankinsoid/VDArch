@@ -9,15 +9,37 @@
 import UIKit
 import RxSwift
 import RxCocoa
+import VDFlow
 
-public protocol StepAction: Action {}
+public protocol StepAction: Action {
+	func navigate(coordinator: FlowCoordinator)
+}
 
-public final class FlowCoordinator {
-	
-	private let stepper = PublishRelay<StepAction>()
-	private let disposeBag = DisposeBag()
-	
-	public init() {}
+extension FlowPath: StepAction {
+	public func navigate(coordinator: FlowCoordinator) {
+		coordinator.navigate(to: self)
+	}
+}
+
+extension FlowID: StepAction where Value == Void {
+	public func navigate(coordinator: FlowCoordinator) {
+		coordinator.navigate(to: self)
+	}
+}
+
+extension FlowMove: StepAction {
+	public func navigate(coordinator: FlowCoordinator) {
+		coordinator.navigate(to: self)
+	}
+}
+
+extension StepAction where Self: RawRepresentable, RawValue == String {
+	public func navigate(coordinator: FlowCoordinator) {
+		coordinator.navigate(to: self)
+	}
+}
+
+extension FlowCoordinator {
 	
 	public func middleware<State>(as: State.Type) -> Middleware<State> {
 		middleware()
@@ -29,7 +51,8 @@ public final class FlowCoordinator {
 				return { action in
 					if let step = action as? StepAction {
 						DispatchQueue.main.async {
-							self?.stepper.accept(step)
+							guard let self = self else { return }
+							step.navigate(coordinator: self)
 						}
 					}
 					next(action)
@@ -37,67 +60,5 @@ public final class FlowCoordinator {
 			}
 		}
 	}
-	
-	public func coordinate(with flow: Flow) {
-		stepper.subscribe(
-			onNext: {[weak self] in
-				if let newContributor = flow.navigate(to: $0) {
-					self?.subscribe(contributor: newContributor)
-				}
-			}
-		)
-		.disposed(by: disposeBag)
-	}
-	
-	private func subscribe(contributor: FlowContributor) {
-		stepper.takeUntil(contributor.finish.asObservable())
-			.subscribe(
-				onNext: {[weak self] in
-					if let newContributor = contributor.flow.navigate(to: $0) {
-						self?.subscribe(contributor: newContributor)
-					}
-				}
-			)
-			.disposed(by: disposeBag)
-	}
-	
-}
 
-public struct FlowContributor {
-	public var flow: Flow
-	public var finish: Single<Void>
-	
-	public init(flow: Flow, finish: Single<Void>) {
-		self.flow = flow
-		self.finish = finish
-	}
-	
-	public init(flow: Flow, whileAlive root: AnyObject) {
-		self = FlowContributor(flow: flow, finish: Reactive(root).deallocated.asSingle())
-	}
-	
-	public init(flow: Flow, whileDisplayed root: UIViewController) {
-		self = FlowContributor(flow: flow, finish: root.rx.dismissed.take(1).asSingle())
-	}
-	
-}
-
-public protocol Flow {
-	func navigate(to step: StepAction) -> FlowContributor?
-}
-
-private extension Reactive where Base: UIViewController {
-	
-	var dismissed: ControlEvent<Void> {
-		let dismissedSource = self.sentMessage(#selector(Base.viewDidDisappear))
-			.filter { [base] _ in base.isBeingDismissed }
-			.map { _ in }
-		
-		let movedToParentSource = self.sentMessage(#selector(Base.didMove))
-			.filter({ !($0.first is UIViewController) })
-			.map { _ in }
-		
-		return ControlEvent(events: Observable.merge(dismissedSource, movedToParentSource, deallocated))
-	}
-	
 }
