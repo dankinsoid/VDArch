@@ -21,21 +21,15 @@ extension FlowPath: StepAction {
 	}
 }
 
-extension FlowPoint: StepAction {
+extension FlowStep: StepAction {
 	public func navigate(coordinator: FlowCoordinator) {
 		coordinator.navigate(to: self)
 	}
 }
 
-extension FlowID: Action where Value == Void {}
+extension NodeID: Action where Value == Void {}
 
-extension FlowID: StepAction where Value == Void {
-	public func navigate(coordinator: FlowCoordinator) {
-		coordinator.navigate(to: self)
-	}
-}
-
-extension FlowMove: StepAction {
+extension NodeID: StepAction where Value == Void {
 	public func navigate(coordinator: FlowCoordinator) {
 		coordinator.navigate(to: self)
 	}
