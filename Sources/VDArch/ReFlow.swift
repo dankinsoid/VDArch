@@ -51,13 +51,13 @@ extension FlowCoordinator {
 		return {[weak self] _, _ in
 			return { next in
 				return { action in
+					next(action)
 					if let step = action as? StepAction {
 						DispatchQueue.main.async {
 							guard let self = self else { return }
 							step.navigate(coordinator: self)
 						}
 					}
-					next(action)
 				}
 			}
 		}
