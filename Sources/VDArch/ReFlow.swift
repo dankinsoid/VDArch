@@ -12,33 +12,25 @@ import RxCocoa
 import VDFlow
 
 public protocol StepAction: Action {
-	func navigate(coordinator: FlowCoordinator)
+	func asPath() -> FlowPath
 }
 
 extension FlowPath: StepAction {
-	public func navigate(coordinator: FlowCoordinator) {
-		coordinator.navigate(to: self)
-	}
+	public func asPath() -> FlowPath { self }
 }
 
 extension FlowStep: StepAction {
-	public func navigate(coordinator: FlowCoordinator) {
-		coordinator.navigate(to: self)
-	}
+	public func asPath() -> FlowPath { FlowPath([step]) }
 }
 
 extension NodeID: Action where Value == Void {}
 
 extension NodeID: StepAction where Value == Void {
-	public func navigate(coordinator: FlowCoordinator) {
-		coordinator.navigate(to: self)
-	}
+	public func asPath() -> FlowPath { with(()).asPath() }
 }
 
 extension StepAction where Self: RawRepresentable, RawValue == String {
-	public func navigate(coordinator: FlowCoordinator) {
-		coordinator.navigate(to: self)
-	}
+	public func asPath() -> FlowPath { NodeID<Void>(self).asPath() }
 }
 
 extension FlowCoordinator {
@@ -55,7 +47,7 @@ extension FlowCoordinator {
 					if let step = action as? StepAction {
 						DispatchQueue.main.async {
 							guard let self = self else { return }
-							step.navigate(coordinator: self)
+							self.navigate(to: step.asPath())
 						}
 					}
 				}
