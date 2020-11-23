@@ -11,27 +11,11 @@ import RxSwift
 import RxCocoa
 import VDFlow
 
-public protocol StepAction: Action {
-	func asPath() -> FlowPath
-}
+public typealias StepAction = Action & FlowPathConvertable
 
-extension FlowPath: StepAction {
-	public func asPath() -> FlowPath { self }
-}
-
-extension FlowStep: StepAction {
-	public func asPath() -> FlowPath { FlowPath([self]) }
-}
-
+extension FlowPath: Action {}
+extension FlowStep: Action {}
 extension NodeID: Action where Value == Void {}
-
-extension NodeID: StepAction where Value == Void {
-	public func asPath() -> FlowPath { with(()).asPath() }
-}
-
-extension StepAction where Self: RawRepresentable, RawValue == String {
-	public func asPath() -> FlowPath { NodeID<Void>(self).asPath() }
-}
 
 extension FlowCoordinator {
 	
@@ -47,7 +31,7 @@ extension FlowCoordinator {
 					if let step = action as? StepAction {
 						DispatchQueue.main.async {
 							guard let self = self else { return }
-							self.navigate(to: step.asPath())
+							self.navigate(to: step)
 						}
 					}
 				}
