@@ -20,7 +20,7 @@ extension FlowPath: StepAction {
 }
 
 extension FlowStep: StepAction {
-	public func asPath() -> FlowPath { FlowPath([step]) }
+	public func asPath() -> FlowPath { FlowPath([self]) }
 }
 
 extension NodeID: Action where Value == Void {}
