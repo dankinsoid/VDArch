@@ -32,7 +32,7 @@ public protocol DispatchingStoreType {
 
 extension DispatchingStoreType {
 	
-	public func dispatch(_ array: [Action]) {
+	public func dispatch(_ array: [Action], on queue: DispatchQueue? = nil) {
 		array.forEach(dispatch)
 	}
 	

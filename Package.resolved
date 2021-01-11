@@ -1,0 +1,43 @@
+{
+  "object": {
+    "pins": [
+      {
+        "package": "RxOperators",
+        "repositoryURL": "https://github.com/dankinsoid/RxOperators.git",
+        "state": {
+          "branch": null,
+          "revision": "481c7b9e4c1ff05d1246cf34f38f58e68ff31bff",
+          "version": "1.0.26"
+        }
+      },
+      {
+        "package": "RxSwift",
+        "repositoryURL": "https://github.com/ReactiveX/RxSwift.git",
+        "state": {
+          "branch": null,
+          "revision": "002d325b0bdee94e7882e1114af5ff4fe1e96afa",
+          "version": "5.1.1"
+        }
+      },
+      {
+        "package": "VDFlow",
+        "repositoryURL": "https://github.com/dankinsoid/VDFlow.git",
+        "state": {
+          "branch": null,
+          "revision": "01585986e195e3c1c8865fcc98748508e350b7e8",
+          "version": "1.0.23"
+        }
+      },
+      {
+        "package": "VDKit",
+        "repositoryURL": "https://github.com/dankinsoid/VDKit.git",
+        "state": {
+          "branch": null,
+          "revision": "46af2a4dc9090a6373e22bafde157b78e609a614",
+          "version": "1.0.25"
+        }
+      }
+    ]
+  },
+  "version": 1
+}

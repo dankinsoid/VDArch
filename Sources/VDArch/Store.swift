@@ -22,12 +22,14 @@ open class Store<State: StateType>: ConnectableStoreType {
 	
 	private(set) open var state: State {
 		didSet {
-			subscriptions.forEach {
-				if $0.subscriber == nil {
-					subscriptions.remove($0)
-				} else {
-					$0.newValues(oldState: oldValue, newState: state)
-				}
+			asyncIfNeeded(on: queue) {[self] in
+				subscriptions.forEach {
+					if $0.subscriber == nil {
+					 	subscriptions.remove($0)
+					} else {
+					 	$0.newValues(oldState: oldValue, newState: state)
+				 	}
+			 	}
 			}
 		}
 	}
@@ -39,8 +41,7 @@ open class Store<State: StateType>: ConnectableStoreType {
 	private var reducers: [UUID: Reducer<State>] = [:]
 	private var ids: [UUID] = []
 	private let lock = NSRecursiveLock()
-	
-	@Synchronized private var isDispatching = false
+	public let queue: DispatchQueue
 	
 	/// Indicates if new subscriptions attempt to apply `skipRepeats`
 	/// by default.
@@ -61,6 +62,7 @@ open class Store<State: StateType>: ConnectableStoreType {
 	///   provided by the reducer in that case.
 	/// - parameter middleware: Ordered list of action pre-processors, acting
 	///   before the root reducer.
+	/// - parameter queue: serial DispatchQueue for dispatching.
 	/// - parameter automaticallySkipsRepeats: If `true`, the store will attempt
 	///   to skip idempotent state updates when a subscriber's state type
 	///   implements `Equatable`. Defaults to `true`.
@@ -68,21 +70,25 @@ open class Store<State: StateType>: ConnectableStoreType {
 		reducer: @escaping Reducer<State>,
 		state: State,
 		middleware: [Middleware<State>] = [],
+		queue: DispatchQueue = .store,
 		automaticallySkipsRepeats: Bool = true
 	) {
 		self.subscriptionsAutomaticallySkipRepeats = automaticallySkipsRepeats
 		self.middleware = middleware
 		self.state = state
+		self.queue = queue
 		_ = self.connect(reducer: reducer)
 	}
 	
 	public init(
 		state: State,
 		middleware: [Middleware<State>] = [],
+		queue: DispatchQueue = .store,
 		automaticallySkipsRepeats: Bool = true
 	) {
 		self.subscriptionsAutomaticallySkipRepeats = automaticallySkipsRepeats
 		self.middleware = middleware
+		self.queue = queue
 		self.state = state
 	}
 	
@@ -92,7 +98,7 @@ open class Store<State: StateType>: ConnectableStoreType {
 			.reversed()
 			.reduce(
 				{ [unowned self] action in
-					self._defaultDispatch(action: action) },
+					self.defaultDispatch(action: action) },
 				{ dispatchFunction, middleware in
 					// If the store get's deinitialized before the middleware is complete; drop
 					// the action without dispatching.
@@ -173,30 +179,50 @@ open class Store<State: StateType>: ConnectableStoreType {
 		actionSubscriptions.remove(StoreSubscriberHashable(subscriber: subscriber))
 	}
 	
-	// swiftlint:disable:next identifier_name
-	open func _defaultDispatch(action: Action) {
-		guard !isDispatching else {
-			fatalError(
-				"VDArch:ConcurrentMutationError- Action has been dispatched while" +
-					" a previous action is action is being processed. A reducer" +
-					" is dispatching an action, or VDArch is used in a concurrent context" +
-					" (e.g. from multiple threads)."
-			)
+	func defaultDispatch(action: Action) {
+		var oldState: State?
+		onMain { oldState = state }
+		let newState = reduce(action: action, state: oldState)
+		set(state: newState) {[self] in
+			queue.async {
+				actionSubscriptions.forEach {
+					$0.subscriber._newState(state: action)
+				}
+			}
 		}
-		
-		isDispatching = true
-		let newState = reduce(action: action, state: state)
-		isDispatching = false
-		
-		state = newState
-		
-		actionSubscriptions.forEach {
-			$0.subscriber._newState(state: action)
+	}
+	
+	private func set(state: State, completion: @escaping () -> Void) {
+		onMain {
+			self.state = state
+			completion()
+		}
+	}
+	
+	private func onMain(_ block: () -> Void) {
+		if Thread.isMainThread {
+			block()
+		} else {
+			DispatchQueue.main.sync(execute: block)
+		}
+	}
+	
+	private func asyncIfNeeded(on queue: DispatchQueue, _ block: @escaping () -> Void) {
+		if queue === DispatchQueue.main {
+			onMain(block)
+		} else {
+			queue.async(execute: block)
 		}
 	}
 	
 	open func dispatch(_ action: Action) {
-		dispatchFunction(action)
+		dispatch(action, on: queue)
+	}
+	
+	open func dispatch(_ action: Action, on queue: DispatchQueue) {
+		asyncIfNeeded(on: queue) {
+			self.dispatchFunction(action)
+		}
 	}
 	
 	@discardableResult
@@ -211,13 +237,12 @@ open class Store<State: StateType>: ConnectableStoreType {
 		}
 	}
 	
-	open func substore<Substate: StateType>(lens: Lens<State, Substate>) -> Store<Substate> {
-		let substore = Substore(store: self, lens: lens)
-		return substore
+	open func substore<Substate: StateType>(lens: Lens<State, Substate>, on queue: DispatchQueue? = nil) -> Store<Substate> {
+		Substore(store: self, lens: lens, on: queue ?? self.queue)
 	}
 	
-	open func substore<Substate: StateType>(_ keyPath: WritableKeyPath<State, Substate>) -> Store<Substate> {
-		Substore(store: self, lens: Lens(at: keyPath))
+	open func substore<Substate: StateType>(_ keyPath: WritableKeyPath<State, Substate>, on queue: DispatchQueue? = nil) -> Store<Substate> {
+		substore(lens: Lens(at: keyPath), on: queue)
 	}
 	
 	private func reduce(action: Action, state: State?) -> State {
