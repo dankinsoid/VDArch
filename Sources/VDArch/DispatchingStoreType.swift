@@ -25,15 +25,15 @@ public protocol DispatchingStoreType {
 	
 	- parameter action: The action that is being dispatched to the store
 	*/
-	func dispatch(_ action: Action)
+	func dispatch(_ action: Action, on queue: DispatchQueue?)
 	func observeActions<S: StoreSubscriber>(_ subscriber: S) where S.StoreSubscriberStateType == Action
 	func observeActions<S: StoreSubscriber>(_ subscriber: S) where S.StoreSubscriberStateType: Action
 }
 
 extension DispatchingStoreType {
 	
-	public func dispatch(_ array: [Action]) {
-		array.forEach(dispatch)
+	public func dispatch(_ array: [Action], on queue: DispatchQueue? = nil) {
+		array.forEach { self.dispatch($0, on: queue) }
 	}
 	
 }

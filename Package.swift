@@ -26,9 +26,6 @@ let package = Package(
         .target(
             name: "VDArch",
             dependencies: ["VDKit", "RxSwift", "RxOperators"]
-        ),
-        .testTarget(
-            name: "VDArchTests",
-            dependencies: ["VDArch"]),
+        )
     ]
 )

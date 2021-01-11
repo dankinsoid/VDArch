@@ -39,8 +39,7 @@ open class Store<State: StateType>: ConnectableStoreType {
 	private var reducers: [UUID: Reducer<State>] = [:]
 	private var ids: [UUID] = []
 	private let lock = NSRecursiveLock()
-	
-	@Synchronized private var isDispatching = false
+	public let queue: DispatchQueue
 	
 	/// Indicates if new subscriptions attempt to apply `skipRepeats`
 	/// by default.
@@ -61,6 +60,7 @@ open class Store<State: StateType>: ConnectableStoreType {
 	///   provided by the reducer in that case.
 	/// - parameter middleware: Ordered list of action pre-processors, acting
 	///   before the root reducer.
+	/// - parameter queue: serial DispatchQueue for dispatching.
 	/// - parameter automaticallySkipsRepeats: If `true`, the store will attempt
 	///   to skip idempotent state updates when a subscriber's state type
 	///   implements `Equatable`. Defaults to `true`.
@@ -68,21 +68,25 @@ open class Store<State: StateType>: ConnectableStoreType {
 		reducer: @escaping Reducer<State>,
 		state: State,
 		middleware: [Middleware<State>] = [],
+		queue: DispatchQueue = .store,
 		automaticallySkipsRepeats: Bool = true
 	) {
 		self.subscriptionsAutomaticallySkipRepeats = automaticallySkipsRepeats
 		self.middleware = middleware
 		self.state = state
+		self.queue = queue
 		_ = self.connect(reducer: reducer)
 	}
 	
 	public init(
 		state: State,
 		middleware: [Middleware<State>] = [],
+		queue: DispatchQueue = .store,
 		automaticallySkipsRepeats: Bool = true
 	) {
 		self.subscriptionsAutomaticallySkipRepeats = automaticallySkipsRepeats
 		self.middleware = middleware
+		self.queue = queue
 		self.state = state
 	}
 	
@@ -175,28 +179,17 @@ open class Store<State: StateType>: ConnectableStoreType {
 	
 	// swiftlint:disable:next identifier_name
 	open func _defaultDispatch(action: Action) {
-		guard !isDispatching else {
-			fatalError(
-				"VDArch:ConcurrentMutationError- Action has been dispatched while" +
-					" a previous action is action is being processed. A reducer" +
-					" is dispatching an action, or VDArch is used in a concurrent context" +
-					" (e.g. from multiple threads)."
-			)
-		}
-		
-		isDispatching = true
 		let newState = reduce(action: action, state: state)
-		isDispatching = false
-		
 		state = newState
-		
 		actionSubscriptions.forEach {
 			$0.subscriber._newState(state: action)
 		}
 	}
 	
-	open func dispatch(_ action: Action) {
-		dispatchFunction(action)
+	open func dispatch(_ action: Action, on queue: DispatchQueue? = nil) {
+		(queue ?? self.queue).async {
+			self.dispatchFunction(action)
+		}
 	}
 	
 	@discardableResult
@@ -211,13 +204,13 @@ open class Store<State: StateType>: ConnectableStoreType {
 		}
 	}
 	
-	open func substore<Substate: StateType>(lens: Lens<State, Substate>) -> Store<Substate> {
-		let substore = Substore(store: self, lens: lens)
+	open func substore<Substate: StateType>(lens: Lens<State, Substate>, queue: DispatchQueue? = nil) -> Store<Substate> {
+		let substore = Substore(store: self, queue: queue, lens: lens)
 		return substore
 	}
 	
-	open func substore<Substate: StateType>(_ keyPath: WritableKeyPath<State, Substate>) -> Store<Substate> {
-		Substore(store: self, lens: Lens(at: keyPath))
+	open func substore<Substate: StateType>(_ keyPath: WritableKeyPath<State, Substate>, queue: DispatchQueue? = nil) -> Store<Substate> {
+		Substore(store: self, queue: queue, lens: Lens(at: keyPath))
 	}
 	
 	private func reduce(action: Action, state: State?) -> State {

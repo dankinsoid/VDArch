@@ -16,14 +16,14 @@ final class Substore<ParentState: StateType, State: StateType>: Store<State> {
 		lens.get(parent.state)
 	}
 	
-	init(store: Store<ParentState>, lens: Lens<ParentState, State>) {
+	init(store: Store<ParentState>, queue: DispatchQueue?, lens: Lens<ParentState, State>) {
 		parent = store
 		self.lens = lens
-		super.init(state: lens.get(store.state), middleware: [], automaticallySkipsRepeats: true)
+		super.init(state: lens.get(store.state), middleware: [], queue: queue ?? store.queue, automaticallySkipsRepeats: true)
 	}
 	
 	override func _defaultDispatch(action: Action) {
-		parent.dispatch(action)
+		parent.dispatch(action, on: queue)
 	}
 	
 	@discardableResult
