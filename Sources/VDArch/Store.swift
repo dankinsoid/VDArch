@@ -179,17 +179,17 @@ open class Store<State: StateType>: ConnectableStoreType {
 	
 	// swiftlint:disable:next identifier_name
 	open func _defaultDispatch(action: Action) {
-		let newState = reduce(action: action, state: state)
-		state = newState
-		actionSubscriptions.forEach {
-			$0.subscriber._newState(state: action)
+		queue.async {[self] in
+			let newState = reduce(action: action, state: state)
+		 state = newState
+		 actionSubscriptions.forEach {
+			 $0.subscriber._newState(state: action)
+		 }
 		}
 	}
 	
-	open func dispatch(_ action: Action, on queue: DispatchQueue? = nil) {
-		(queue ?? self.queue).async {
-			self.dispatchFunction(action)
-		}
+	open func dispatch(_ action: Action) {
+		self.dispatchFunction(action)
 	}
 	
 	@discardableResult
@@ -204,13 +204,12 @@ open class Store<State: StateType>: ConnectableStoreType {
 		}
 	}
 	
-	open func substore<Substate: StateType>(lens: Lens<State, Substate>, queue: DispatchQueue? = nil) -> Store<Substate> {
-		let substore = Substore(store: self, queue: queue, lens: lens)
-		return substore
+	open func substore<Substate: StateType>(lens: Lens<State, Substate>) -> Store<Substate> {
+		Substore(store: self, lens: lens)
 	}
 	
-	open func substore<Substate: StateType>(_ keyPath: WritableKeyPath<State, Substate>, queue: DispatchQueue? = nil) -> Store<Substate> {
-		Substore(store: self, queue: queue, lens: Lens(at: keyPath))
+	open func substore<Substate: StateType>(_ keyPath: WritableKeyPath<State, Substate>) -> Store<Substate> {
+		substore(lens: Lens(at: keyPath))
 	}
 	
 	private func reduce(action: Action, state: State?) -> State {

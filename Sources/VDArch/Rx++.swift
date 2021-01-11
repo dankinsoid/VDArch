@@ -34,7 +34,7 @@ public struct RxStore<Store: StoreType>: ObservableType {
 	public var dispatcher: AnyObserver<Action> {
 		AnyObserver {[base] in
 			guard case .next(let action) = $0 else { return }
-			base.dispatch(action, on: nil)
+			base.dispatch(action)
 		}
 	}
 	
