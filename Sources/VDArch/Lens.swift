@@ -47,14 +47,11 @@ public struct Lens<State, SubState> {
 	}
 	
 	public func sublens<S>(at keyPath: WritableKeyPath<SubState, S>) -> Lens<State, S> {
-		sublens(
-			get: { $0[keyPath: keyPath] },
-			set: {
-				var result = $0
-				result[keyPath: keyPath] = $1
-			 	return result
-			}
-		)
+		sublens(Lens<SubState, S>(at: keyPath))
+	}
+	
+	public func sublens<S>(at keyPath: WritableKeyPath<SubState, S?>, or defaultValue: S) -> Lens<State, S> {
+		sublens(Lens<SubState, S>(at: keyPath, or: defaultValue))
 	}
 	
 	public subscript<S>(dynamicMember keyPath: WritableKeyPath<SubState, S>) -> Lens<State, S> {
