@@ -22,12 +22,14 @@ open class Store<State: StateType>: ConnectableStoreType {
 	
 	private(set) open var state: State {
 		didSet {
-			subscriptions.forEach {
-				if $0.subscriber == nil {
-					subscriptions.remove($0)
-				} else {
-					$0.newValues(oldState: oldValue, newState: state)
-				}
+			asyncIfNeeded(on: queue) {[self] in
+				subscriptions.forEach {
+					if $0.subscriber == nil {
+					 	subscriptions.remove($0)
+					} else {
+					 	$0.newValues(oldState: oldValue, newState: state)
+				 	}
+			 	}
 			}
 		}
 	}
@@ -96,7 +98,7 @@ open class Store<State: StateType>: ConnectableStoreType {
 			.reversed()
 			.reduce(
 				{ [unowned self] action in
-					self._defaultDispatch(action: action) },
+					self.defaultDispatch(action: action) },
 				{ dispatchFunction, middleware in
 					// If the store get's deinitialized before the middleware is complete; drop
 					// the action without dispatching.
@@ -177,19 +179,50 @@ open class Store<State: StateType>: ConnectableStoreType {
 		actionSubscriptions.remove(StoreSubscriberHashable(subscriber: subscriber))
 	}
 	
-	// swiftlint:disable:next identifier_name
-	open func _defaultDispatch(action: Action) {
-		queue.async {[self] in
-			let newState = reduce(action: action, state: state)
-		 state = newState
-		 actionSubscriptions.forEach {
-			 $0.subscriber._newState(state: action)
-		 }
+	func defaultDispatch(action: Action) {
+		var oldState: State?
+		onMain { oldState = state }
+		let newState = reduce(action: action, state: oldState)
+		set(state: newState) {[self] in
+			queue.async {
+				actionSubscriptions.forEach {
+					$0.subscriber._newState(state: action)
+				}
+			}
+		}
+	}
+	
+	private func set(state: State, completion: @escaping () -> Void) {
+		onMain {
+			self.state = state
+			completion()
+		}
+	}
+	
+	private func onMain(_ block: () -> Void) {
+		if Thread.isMainThread {
+			block()
+		} else {
+			DispatchQueue.main.sync(execute: block)
+		}
+	}
+	
+	private func asyncIfNeeded(on queue: DispatchQueue, _ block: @escaping () -> Void) {
+		if queue === DispatchQueue.main {
+			onMain(block)
+		} else {
+			queue.async(execute: block)
 		}
 	}
 	
 	open func dispatch(_ action: Action) {
-		self.dispatchFunction(action)
+		dispatch(action, on: queue)
+	}
+	
+	open func dispatch(_ action: Action, on queue: DispatchQueue) {
+		asyncIfNeeded(on: queue) {
+			self.dispatchFunction(action)
+		}
 	}
 	
 	@discardableResult
@@ -204,12 +237,12 @@ open class Store<State: StateType>: ConnectableStoreType {
 		}
 	}
 	
-	open func substore<Substate: StateType>(lens: Lens<State, Substate>) -> Store<Substate> {
-		Substore(store: self, lens: lens)
+	open func substore<Substate: StateType>(lens: Lens<State, Substate>, on queue: DispatchQueue? = nil) -> Store<Substate> {
+		Substore(store: self, lens: lens, on: queue ?? self.queue)
 	}
 	
-	open func substore<Substate: StateType>(_ keyPath: WritableKeyPath<State, Substate>) -> Store<Substate> {
-		substore(lens: Lens(at: keyPath))
+	open func substore<Substate: StateType>(_ keyPath: WritableKeyPath<State, Substate>, on queue: DispatchQueue? = nil) -> Store<Substate> {
+		substore(lens: Lens(at: keyPath), on: queue)
 	}
 	
 	private func reduce(action: Action, state: State?) -> State {
