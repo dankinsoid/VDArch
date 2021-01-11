@@ -8,7 +8,7 @@
 
 Pod::Spec.new do |s|
   s.name             = 'VDArch'
-  s.version          = '1.0.13'
+  s.version          = '1.0.21'
   s.summary          = 'A short description of VDAnimation.'
   s.description      = <<-DESC
 TODO: Add long description of the pod here.
@@ -21,7 +21,7 @@ TODO: Add long description of the pod here.
 
   s.ios.deployment_target = '11.0'
   s.swift_versions = '5.1'
-  s.source_files = '/Sources/VDArch/**/*'
+  s.source_files = 'Sources/VDArch/**/*'
   s.frameworks = 'UIKit'
   s.dependency 'VDKit'
   s.dependency 'RxSwift'
