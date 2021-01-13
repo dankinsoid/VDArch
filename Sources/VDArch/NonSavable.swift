@@ -44,6 +44,20 @@ extension NonCacheable where Value: ExpressibleByArrayLiteral {
 	}
 }
 
+extension NonCacheable where Value: ExpressibleByDictionaryLiteral {
+	public init(wrappedValue: Value) {
+		saveValue = [:]
+		self.wrappedValue = wrappedValue
+	}
+}
+
+extension NonCacheable where Value: ExpressibleByStringLiteral {
+	public init(wrappedValue: Value) {
+		saveValue = ""
+		self.wrappedValue = wrappedValue
+	}
+}
+
 extension NonCacheable: Equatable where Value: Equatable {}
 extension NonCacheable: Hashable where Value: Hashable {}
 extension NonCacheable: Comparable where Value: Comparable {
