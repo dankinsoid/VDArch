@@ -22,14 +22,12 @@ open class Store<State: StateType>: ConnectableStoreType {
 	
 	private(set) open var state: State {
 		didSet {
-			asyncIfNeeded(on: queue) {[self] in
-				subscriptions.forEach {
-					if $0.subscriber == nil {
-					 	subscriptions.remove($0)
-					} else {
-					 	$0.newValues(oldState: oldValue, newState: state)
-				 	}
-			 	}
+			subscriptions.forEach {
+				if $0.subscriber == nil {
+					subscriptions.remove($0)
+				} else {
+					$0.newValues(oldState: oldValue, newState: state)
+				}
 			}
 		}
 	}
@@ -180,49 +178,25 @@ open class Store<State: StateType>: ConnectableStoreType {
 	}
 	
 	func defaultDispatch(action: Action) {
-		var oldState: State?
-		onMain { oldState = state }
-		let newState = reduce(action: action, state: oldState)
-		set(state: newState) {[self] in
-			queue.async {
-				actionSubscriptions.forEach {
-					$0.subscriber._newState(state: action)
-				}
-			}
+		queue.async {[self] in
+			let newState = reduce(action: action, state: state)
+			set(state: newState)
+			notify(action: action)
 		}
 	}
 	
-	private func set(state: State, completion: @escaping () -> Void) {
-		onMain {
-			self.state = state
-			completion()
-		}
+	private func notify(action: Action) {
+		actionSubscriptions.forEach {
+			 $0.subscriber._newState(state: action)
+		 }
 	}
 	
-	private func onMain(_ block: () -> Void) {
-		if Thread.isMainThread {
-			block()
-		} else {
-			DispatchQueue.main.sync(execute: block)
-		}
-	}
-	
-	private func asyncIfNeeded(on queue: DispatchQueue, _ block: @escaping () -> Void) {
-		if queue === DispatchQueue.main {
-			onMain(block)
-		} else {
-			queue.async(execute: block)
-		}
+	func set(state: State) {
+		self.state = state
 	}
 	
 	open func dispatch(_ action: Action) {
-		dispatch(action, on: queue)
-	}
-	
-	open func dispatch(_ action: Action, on queue: DispatchQueue) {
-		asyncIfNeeded(on: queue) {
-			self.dispatchFunction(action)
-		}
+		self.dispatchFunction(action)
 	}
 	
 	@discardableResult
@@ -237,12 +211,12 @@ open class Store<State: StateType>: ConnectableStoreType {
 		}
 	}
 	
-	open func substore<Substate: StateType>(lens: Lens<State, Substate>, on queue: DispatchQueue? = nil) -> Store<Substate> {
-		Substore(store: self, lens: lens, on: queue ?? self.queue)
+	open func substore<Substate: StateType>(lens: Lens<State, Substate>) -> Store<Substate> {
+		Substore(store: self, lens: lens)
 	}
 	
-	open func substore<Substate: StateType>(_ keyPath: WritableKeyPath<State, Substate>, on queue: DispatchQueue? = nil) -> Store<Substate> {
-		substore(lens: Lens(at: keyPath), on: queue)
+	open func substore<Substate: StateType>(_ keyPath: WritableKeyPath<State, Substate>) -> Store<Substate> {
+		substore(lens: Lens(at: keyPath))
 	}
 	
 	private func reduce(action: Action, state: State?) -> State {

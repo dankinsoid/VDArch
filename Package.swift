@@ -28,7 +28,7 @@ let package = Package(
             name: "VDArch",
             dependencies: ["VDKit", "RxSwift", "RxOperators"]
 				),
-				.target(
+				.testTarget(
 					name: "VDArchTests",
 					dependencies: ["VDArch"],
 					path: "Tests"

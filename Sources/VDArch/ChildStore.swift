@@ -1,28 +1,32 @@
 //
-//  SubStore.swift
-//  VDArch
+//  File.swift
+//  
 //
-//  Created by Daniil on 21.10.2020.
-//  Copyright © 2020 Daniil. All rights reserved.
+//  Created by Данил Войдилов on 13.01.2021.
 //
 
 import Foundation
 
-final class Substore<ParentState: StateType, State: StateType>: Store<State> {
+final class ChildStore<ParentState: StateType, State: StateType>: Store<State> {
 	
 	let parent: Store<ParentState>
-	let lens: Lens<ParentState, State>
-	override var state: State {
-		lens.get(parent.state)
+	var lens: Lens<ParentState, State> {
+		Lens(
+			get: {[state, weak self] _ in self?.state ?? state },
+			set: {[weak self] parent, child in
+				self?.set(state: child)
+				return parent
+			}
+		)
 	}
 	
-	init(store: Store<ParentState>, lens: Lens<ParentState, State>) {
+	init(store: Store<ParentState>, state: State, on queue: DispatchQueue) {
 		parent = store
-		self.lens = lens
-		super.init(state: lens.get(store.state), middleware: [], automaticallySkipsRepeats: true)
+		super.init(state: state, middleware: [], queue: queue, automaticallySkipsRepeats: true)
 	}
 	
 	override func defaultDispatch(action: Action) {
+		super.defaultDispatch(action: action)
 		parent.dispatch(action)
 	}
 	
