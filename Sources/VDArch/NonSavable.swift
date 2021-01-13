@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import VDKit
 
 @propertyWrapper
 public struct NonCacheable<Value: Codable>: Codable {
@@ -18,11 +19,6 @@ public struct NonCacheable<Value: Codable>: Codable {
 		self.wrappedValue = wrappedValue
 	}
 	
-	public init(wrappedValue: Value) {
-		saveValue = wrappedValue
-		self.wrappedValue = wrappedValue
-	}
-	
 	public init(from decoder: Decoder) throws {
 		wrappedValue = try Value(from: decoder)
 		saveValue = wrappedValue
@@ -32,6 +28,20 @@ public struct NonCacheable<Value: Codable>: Codable {
 		try saveValue.encode(to: encoder)
 	}
 	
+}
+
+extension NonCacheable where Value: OptionalProtocol {
+	public init(wrappedValue: Value) {
+		saveValue = .init(nil)
+		self.wrappedValue = wrappedValue
+	}
+}
+
+extension NonCacheable where Value: ExpressibleByArrayLiteral {
+	public init(wrappedValue: Value) {
+		saveValue = []
+		self.wrappedValue = wrappedValue
+	}
 }
 
 extension NonCacheable: Equatable where Value: Equatable {}
