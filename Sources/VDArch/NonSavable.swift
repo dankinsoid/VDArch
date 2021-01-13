@@ -8,12 +8,12 @@
 import Foundation
 
 @propertyWrapper
-public struct NonSavable<Value: Codable>: Codable {
+public struct NonCacheable<Value: Codable>: Codable {
 	
 	public var wrappedValue: Value
 	public var saveValue: Value
 	
-	public init(wrappedValue: Value, save: Value) {
+	public init(wrappedValue: Value, _ save: Value) {
 		saveValue = save
 		self.wrappedValue = wrappedValue
 	}
@@ -34,10 +34,10 @@ public struct NonSavable<Value: Codable>: Codable {
 	
 }
 
-extension NonSavable: Equatable where Value: Equatable {}
-extension NonSavable: Hashable where Value: Hashable {}
-extension NonSavable: Comparable where Value: Comparable {
-	public static func <(lhs: NonSavable<Value>, rhs: NonSavable<Value>) -> Bool {
+extension NonCacheable: Equatable where Value: Equatable {}
+extension NonCacheable: Hashable where Value: Hashable {}
+extension NonCacheable: Comparable where Value: Comparable {
+	public static func <(lhs: NonCacheable<Value>, rhs: NonCacheable<Value>) -> Bool {
 		lhs.wrappedValue < rhs.wrappedValue
 	}
 }

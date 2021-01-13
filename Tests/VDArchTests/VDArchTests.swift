@@ -28,8 +28,8 @@ struct State: StateType, Codable, Equatable {
 	var substate = SubState()
 	var double = 2.4
 	var bool = true
-	@NonSavable var isLoading = false
-	@NonSavable(save: false) var isAnimating = true
+	@NonCacheable var isLoading = false
+	@NonCacheable(false) var isAnimating = true
 }
 
 struct SubState: StateType, Codable, Equatable {
