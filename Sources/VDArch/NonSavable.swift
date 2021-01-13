@@ -35,6 +35,11 @@ extension NonCacheable where Value: OptionalProtocol {
 		saveValue = .init(nil)
 		self.wrappedValue = wrappedValue
 	}
+	
+	public init() {
+		saveValue = .init(nil)
+		wrappedValue = .init(nil)
+	}
 }
 
 extension NonCacheable where Value: ExpressibleByArrayLiteral {
