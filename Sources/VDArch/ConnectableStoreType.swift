@@ -23,7 +23,7 @@ extension ConnectableStoreType {
 	}
 	
 	public func connect<Reducer: ReducerConvertible>(reducer: Reducer, lens: Lens<State, Reducer.ReducerStateType>) -> ReducerDisconnecter {
-		connect(reducer: reducer.asGlobal(with: lens, default: state))
+		connect(reducer: reducer.asGlobal(with: lens))
 	}
 	
 	public func connect<Reducer: ReducerConvertible>(reducer: Reducer, at keyPath: WritableKeyPath<State, Reducer.ReducerStateType>) -> ReducerDisconnecter {

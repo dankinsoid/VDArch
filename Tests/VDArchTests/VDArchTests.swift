@@ -6,6 +6,8 @@
 //
 
 import XCTest
+@testable import RxSwift
+@testable import RxOperators
 @testable import VDArch
 
 final class VDArchTests: XCTestCase {
@@ -18,9 +20,41 @@ final class VDArchTests: XCTestCase {
 		XCTAssert(json["isAnimating"] as? Bool == false)
 	}
 	
+	func testStores() {
+		let expectation1 = expectation(description: "1")
+		let expectation2 = expectation(description: "2")
+		
+		let store1 = Store(state: State())
+		let store2 = Store(state: State2(), queue: .main)
+		let stores = Stores(store1, store2)
+		let subscriber = Subscriber<Union<State, State2>>()
+		_ = stores.rx => subscriber
+		store1.dispatch(EmptyAction()) { _ in expectation1.fulfill() }
+		stores.dispatch(EmptyAction()) { _ in expectation2.fulfill() }
+		waitForExpectations(timeout: 6, handler: nil)
+		let expected = 4
+		XCTAssert(subscriber.count == expected, "expected \(expected), got: \(subscriber.count)")
+	}
+	
 	static var allTests = [
-		 ("testExample", testExample),
+		("testExample", testExample),
+		("testStores", testStores)
  	]
+	
+	private final class Subscriber<State: StateType>: StoreSubscriber, ObserverType {
+		var count = 0
+		
+		func newState(state: State) {
+			count += 1
+		}
+		
+		func on(_ event: Event<State>) {
+			if case .next(let state) = event {
+				newState(state: state)
+			}
+		}
+		
+	}
 	
 }
 
@@ -30,6 +64,11 @@ struct State: StateType, Codable, Equatable {
 	var bool = true
 	@NonCacheable(false) var isLoading = false
 	@NonCacheable(false) var isAnimating = true
+}
+
+struct State2: StateType, Codable, Equatable {
+	var double = 2.4
+	var bool = true
 }
 
 struct SubState: StateType, Codable, Equatable {

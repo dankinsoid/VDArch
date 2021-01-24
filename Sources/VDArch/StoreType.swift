@@ -21,12 +21,6 @@ public protocol StoreType: DispatchingStoreType {
 	var state: State { get }
 	
 	/**
-	The main dispatch function that is used by all convenience `dispatch` methods.
-	This dispatch function can be extended by providing middlewares.
-	*/
-	var dispatchFunction: DispatchFunction! { get }
-	
-	/**
 	Subscribes the provided subscriber to this store.
 	Subscribers will receive a call to `newState` whenever the
 	state in this store changes.
@@ -35,22 +29,6 @@ public protocol StoreType: DispatchingStoreType {
 	- note: Subscriptions are not ordered, so an order of state updates cannot be guaranteed.
 	*/
 	func subscribe<S: StoreSubscriber>(_ subscriber: S) where S.StoreSubscriberStateType == State
-	
-	/**
-	Subscribes the provided subscriber to this store.
-	Subscribers will receive a call to `newState` whenever the
-	state in this store changes and the subscription decides to forward
-	state update.
-	
-	- parameter subscriber: Subscriber that will receive store updates
-	- parameter transform: A closure that receives a simple subscription and can return a
-	transformed subscription. Subscriptions can be transformed to only select a subset of the
-	state, or to skip certain state updates.
-	- note: Subscriptions are not ordered, so an order of state updates cannot be guaranteed.
-	*/
-	func subscribe<S: StoreSubscriber>(
-		_ subscriber: S, transform: ((Subscription<State>) -> Subscription<S.StoreSubscriberStateType>)
-	)
 	
 	/**
 	Unsubscribes the provided subscriber. The subscriber will no longer

@@ -1,0 +1,80 @@
+//
+//  File.swift
+//  
+//
+//  Created by Данил Войдилов on 14.01.2021.
+//
+
+import Foundation
+
+open class Stores<A: StateType, B: StateType>: Store<Union<A, B>> {
+	public let store1: Store<A>
+	public let store2: Store<B>
+	override public var state: Union<A, B> {
+		Union(store1.state, store2.state)
+	}
+	
+	public init(_ store1: Store<A>, _ store2: Store<B>, middleware: [Middleware<Union<A, B>>] = []) {
+		self.store1 = store1
+		self.store2 = store2
+		super.init(state: Union(store1.state, store2.state), middleware: middleware)
+	}
+	
+	public convenience init(state1: A, state2: B, reducer: @escaping Reducer<State>, middleware: [Middleware<Union<A, B>>] = []) {
+		self.init(
+			Store(state: state1),
+			Store(state: state2),
+			middleware: middleware
+		)
+		connect(reducer: reducer)
+	}
+	
+	override func defaultDispatch(action: Action, completion: ((State) -> Void)?) {
+		DoubleCallback<Void> {
+			self.notify(action: action)
+			completion?(self.state)
+		}.execute(
+			{ c in store1.dispatch(action, completion: { _ in c(()) }) },
+			{ c in store2.dispatch(action, completion: { _ in c(()) }) }
+		)
+	}
+	
+	@discardableResult
+	override open func connect(reducer: @escaping Reducer<Union<A, B>>) -> ReducerDisconnecter {
+		let def = state
+		let first = store1.connect {[weak self] action, state in
+			reducer(action, self.map { Union(state, $0.store2.state)} ?? def).a
+		}
+		let second = store2.connect {[weak self] action, state in
+			reducer(action, self.map { Union($0.store1.state, state) } ?? def).b
+		}
+		return ReducerDisconnecter {
+			first.disconnect()
+			second.disconnect()
+		}
+	}
+	
+	
+	override func _subscribe<S: StoreSubscriber>(_ subscriber: S, sendCurrent: Bool) where State == S.StoreSubscriberStateType {
+		let def = state
+		store1._subscribe(
+			subscriber.map {[weak self] a in
+				self.map { Union(a, $0.store2.state) } ?? def
+			},
+			sendCurrent: false
+		)
+		store2._subscribe(
+			subscriber.map {[weak self] b in
+				self.map { Union($0.store1.state, b) } ?? def
+			},
+			sendCurrent: sendCurrent
+		)
+	}
+
+	override open func unsubscribe(_ subscriber: AnyStoreSubscriber) {
+		super.unsubscribe(subscriber)
+		store1.unsubscribe(subscriber)
+		store2.unsubscribe(subscriber)
+	}
+	
+}

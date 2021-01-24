@@ -19,11 +19,11 @@ final class Substore<ParentState: StateType, State: StateType>: Store<State> {
 	init(store: Store<ParentState>, lens: Lens<ParentState, State>) {
 		parent = store
 		self.lens = lens
-		super.init(state: lens.get(store.state), middleware: [], automaticallySkipsRepeats: true)
+		super.init(state: lens.get(store.state), middleware: [])
 	}
 	
-	override func defaultDispatch(action: Action) {
-		parent.dispatch(action)
+	override func defaultDispatch(action: Action, completion: ((State) -> Void)?) {
+		parent.dispatch(action, completion: { completion?(self.lens.get($0)) })
 	}
 	
 	@discardableResult
@@ -36,16 +36,11 @@ final class Substore<ParentState: StateType, State: StateType>: Store<State> {
 	}
 	
 	override func subscribe<S: StoreSubscriber>(_ subscriber: S) where S.StoreSubscriberStateType == State {
-		parent.subscribe(subscriber, transform: {[lens] in $0.select(lens.get) })
-	}
-	
-	override func subscribe<S: StoreSubscriber>(
-		_ subscriber: S,
-		transform: ((Subscription<State>) -> Subscription<S.StoreSubscriberStateType>)
-	) {
-		parent.subscribe(subscriber) {[lens] in
-			transform($0.select(lens.get))
-		}
+		parent.subscribe(
+			subscriber.map {[lens] in
+				lens.get($0)
+			}
+		)
 	}
 	
 }

@@ -18,32 +18,20 @@ import Foundation
 
 open class Store<State: StateType>: ConnectableStoreType {
 	
-	typealias SubscriptionType = SubscriptionBox<State>
-	
 	private(set) open var state: State {
 		didSet {
-			subscriptions.forEach {
-				if $0.subscriber == nil {
-					subscriptions.remove($0)
-				} else {
-					$0.newValues(oldState: oldValue, newState: state)
-				}
-			}
+			notify(oldValue: oldValue)
 		}
 	}
 	
-	private(set) open lazy var dispatchFunction: DispatchFunction! = createDispatchFunction()
+	private(set) open lazy var dispatchFunction: (Action, @escaping (State) -> Void) -> Void = createDispatchFunction()
 	
-	private var subscriptions: Set<SubscriptionType> = []
+	private var subscriptions: Set<StoreSubscriberHashable> = []
 	private var actionSubscriptions: Set<StoreSubscriberHashable> = []
 	private var reducers: [UUID: Reducer<State>] = [:]
 	private var ids: [UUID] = []
 	private let lock = NSRecursiveLock()
 	public let queue: DispatchQueue
-	
-	/// Indicates if new subscriptions attempt to apply `skipRepeats`
-	/// by default.
-	fileprivate let subscriptionsAutomaticallySkipRepeats: Bool
 	
 	public var middleware: [Middleware<State>] {
 		didSet {
@@ -64,70 +52,55 @@ open class Store<State: StateType>: ConnectableStoreType {
 	/// - parameter automaticallySkipsRepeats: If `true`, the store will attempt
 	///   to skip idempotent state updates when a subscriber's state type
 	///   implements `Equatable`. Defaults to `true`.
-	public init(
+	public convenience init(
 		reducer: @escaping Reducer<State>,
 		state: State,
 		middleware: [Middleware<State>] = [],
-		queue: DispatchQueue = .store,
-		automaticallySkipsRepeats: Bool = true
+		queue: DispatchQueue = .store
 	) {
-		self.subscriptionsAutomaticallySkipRepeats = automaticallySkipsRepeats
-		self.middleware = middleware
-		self.state = state
-		self.queue = queue
+		self.init(state: state, middleware: middleware, queue: queue)
 		_ = self.connect(reducer: reducer)
 	}
 	
 	public init(
 		state: State,
 		middleware: [Middleware<State>] = [],
-		queue: DispatchQueue = .store,
-		automaticallySkipsRepeats: Bool = true
+		queue: DispatchQueue = .store
 	) {
-		self.subscriptionsAutomaticallySkipRepeats = automaticallySkipsRepeats
 		self.middleware = middleware
 		self.queue = queue
 		self.state = state
 	}
 	
-	private func createDispatchFunction() -> DispatchFunction! {
+	private func createDispatchFunction() -> (Action, @escaping (State) -> Void) -> Void {
 		// Wrap the dispatch function with all middlewares
 		return middleware
 			.reversed()
 			.reduce(
-				{ [unowned self] action in
-					self.defaultDispatch(action: action) },
+				{ [unowned self] action, completion in
+					self.defaultDispatch(action: action, completion: completion) },
 				{ dispatchFunction, middleware in
 					// If the store get's deinitialized before the middleware is complete; drop
 					// the action without dispatching.
 					let dispatch: (Action) -> Void = { [weak self] in self?.dispatch($0) }
 					let getState = { [weak self] in self?.state }
-					return middleware(dispatch, getState)(dispatchFunction)
+					return { action, completion in middleware(dispatch, getState)({ dispatchFunction($0, completion) })(action) }
 				})
 	}
 	
-	private func _subscribe<SelectedState, S: StoreSubscriber>(
-		_ subscriber: S, originalSubscription: Subscription<State>,
-		transformedSubscription: Subscription<SelectedState>?)
-	where S.StoreSubscriberStateType == SelectedState
-	{
-		let subscriptionBox = self.subscriptionBox(
-			originalSubscription: originalSubscription,
-			transformedSubscription: transformedSubscription,
-			subscriber: subscriber
-		)
-		
-		subscriptions.update(with: subscriptionBox)
-		
-		originalSubscription.newValues(oldState: nil, newState: state)
+	func _subscribe<S: StoreSubscriber>(_ subscriber: S, sendCurrent: Bool) where State == S.StoreSubscriberStateType {
+		subscriptions.update(with: StoreSubscriberHashable(subscriber))
+		if sendCurrent {
+			subscriber.newState(state: state)
+		}
 	}
 	
 	open func observeActions<S: StoreSubscriber>(_ subscriber: S) where S.StoreSubscriberStateType == Action {
 		_observeActions(subscriber)
 	}
 	
-	private func _observeActions(_ subscriber: AnyStoreSubscriber) {
-		actionSubscriptions.update(with: StoreSubscriberHashable(subscriber: subscriber))
+	func _observeActions(_ subscriber: AnyStoreSubscriber) {
+		actionSubscriptions.update(with: StoreSubscriberHashable(subscriber))
 	}
 	
 	open func observeActions<S: StoreSubscriber>(_ subscriber: S) where S.StoreSubscriberStateType: Action {
@@ -135,60 +108,34 @@ open class Store<State: StateType>: ConnectableStoreType {
 	}
 	
 	open func subscribe<S: StoreSubscriber>(_ subscriber: S) where S.StoreSubscriberStateType == State {
-		_subscribe(subscriber, originalSubscription: Subscription(), transformedSubscription: nil)
-	}
-	
-	open func subscribe<S: StoreSubscriber>(
-		_ subscriber: S, transform: ((Subscription<State>) -> Subscription<S.StoreSubscriberStateType>)
-	) {
-		// Create a subscription for the new subscriber.
-		let originalSubscription = Subscription<State>()
-		// Call the optional transformation closure. This allows callers to modify
-		// the subscription, e.g. in order to subselect parts of the store's state.
-		let transformedSubscription = transform(originalSubscription)
-		
-		_subscribe(subscriber, originalSubscription: originalSubscription,
-							 transformedSubscription: transformedSubscription)
-	}
-	
-	func subscriptionBox<T>(
-		originalSubscription: Subscription<State>,
-		transformedSubscription: Subscription<T>?,
-		subscriber: AnyStoreSubscriber
-	) -> SubscriptionBox<State> {
-		
-		return SubscriptionBox(
-			originalSubscription: originalSubscription,
-			transformedSubscription: transformedSubscription,
-			subscriber: subscriber
-		)
+		_subscribe(subscriber, sendCurrent: true)
 	}
 	
 	open func unsubscribe(_ subscriber: AnyStoreSubscriber) {
-		#if swift(>=5.0)
-		if let index = subscriptions.firstIndex(where: { return $0.subscriber === subscriber }) {
-			subscriptions.remove(at: index)
-		}
-		#else
-		if let index = subscriptions.index(where: { return $0.subscriber === subscriber }) {
-			subscriptions.remove(at: index)
-		}
-		#endif
-		actionSubscriptions.remove(StoreSubscriberHashable(subscriber: subscriber))
+		let hashable = StoreSubscriberHashable(subscriber)
+		subscriptions.remove(hashable)
+		actionSubscriptions.remove(hashable)
 	}
 	
-	func defaultDispatch(action: Action) {
+	func defaultDispatch(action: Action, completion: ((State) -> Void)?) {
 		queue.async {[self] in
 			let newState = reduce(action: action, state: state)
 			set(state: newState)
 			notify(action: action)
+			completion?(newState)
 		}
 	}
 	
-	private func notify(action: Action) {
+	final func notify(action: Action) {
 		actionSubscriptions.forEach {
-			 $0.subscriber._newState(state: action)
+			$0.newState(action)
 		 }
+	}
+	
+	final func notify(oldValue: State) {
+		subscriptions.forEach {
+			$0.newState(state)
+		}
 	}
 	
 	func set(state: State) {
@@ -196,7 +143,11 @@ open class Store<State: StateType>: ConnectableStoreType {
 	}
 	
 	open func dispatch(_ action: Action) {
-		self.dispatchFunction(action)
+		self.dispatch(action, completion: {_ in})
+	}
+	
+	open func dispatch(_ action: Action, completion: @escaping (State) -> Void) {
+		self.dispatchFunction(action, completion)
 	}
 	
 	@discardableResult
@@ -240,34 +191,5 @@ open class Store<State: StateType>: ConnectableStoreType {
 			ids.remove(at: i)
 		}
 		lock.unlock()
-	}
-}
-
-// MARK: Skip Repeats for Equatable States
-
-extension Store {
-	open func subscribe<SelectedState: Equatable, S: StoreSubscriber>(
-		_ subscriber: S, transform: ((Subscription<State>) -> Subscription<SelectedState>)?
-	) where S.StoreSubscriberStateType == SelectedState
-	{
-		let originalSubscription = Subscription<State>()
-		
-		var transformedSubscription = transform?(originalSubscription)
-		if subscriptionsAutomaticallySkipRepeats {
-			transformedSubscription = transformedSubscription?.skipRepeats()
-		}
-		_subscribe(subscriber, originalSubscription: originalSubscription,
-							 transformedSubscription: transformedSubscription)
-	}
-}
-
-extension Store where State: Equatable {
-	open func subscribe<S: StoreSubscriber>(_ subscriber: S)
-	where S.StoreSubscriberStateType == State {
-		guard subscriptionsAutomaticallySkipRepeats else {
-			subscribe(subscriber, transform: nil)
-			return
-		}
-		subscribe(subscriber, transform: { $0.skipRepeats() })
 	}
 }
