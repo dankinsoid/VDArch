@@ -40,7 +40,7 @@ open class Stores<A: StateType, B: StateType>: Store<Union<A, B>> {
 	}
 	
 	@discardableResult
-	override open func connect(reducer: @escaping Reducer<Union<A, B>>) -> ReducerDisconnecter {
+	override open func connect(reducer: @escaping Reducer<Union<A, B>>) -> StoreUnsubscriber {
 		let def = state
 		let first = store1.connect {[weak self] action, state in
 			reducer(action, self.map { Union(state, $0.store2.state)} ?? def).a
@@ -48,27 +48,31 @@ open class Stores<A: StateType, B: StateType>: Store<Union<A, B>> {
 		let second = store2.connect {[weak self] action, state in
 			reducer(action, self.map { Union($0.store1.state, state) } ?? def).b
 		}
-		return ReducerDisconnecter {
-			first.disconnect()
-			second.disconnect()
+		return StoreUnsubscriber {
+			first.unsubscribe()
+			second.unsubscribe()
 		}
 	}
 	
 	
-	override func _subscribe<S: StoreSubscriber>(_ subscriber: S, sendCurrent: Bool) where State == S.StoreSubscriberStateType {
+	override func _subscribe<S: StoreSubscriber>(_ subscriber: S, sendCurrent: Bool) -> StoreUnsubscriber where State == S.StoreSubscriberStateType {
 		let def = state
-		store1._subscribe(
+		let unsubscribe1 = store1._subscribe(
 			subscriber.map {[weak self] a in
 				self.map { Union(a, $0.store2.state) } ?? def
 			},
 			sendCurrent: false
 		)
-		store2._subscribe(
+		let unsubscribe2 = store2._subscribe(
 			subscriber.map {[weak self] b in
 				self.map { Union($0.store1.state, b) } ?? def
 			},
 			sendCurrent: sendCurrent
 		)
+		return StoreUnsubscriber {
+			unsubscribe1.unsubscribe()
+			unsubscribe2.unsubscribe()
+		}
 	}
 
 	override open func unsubscribe(_ subscriber: AnyStoreSubscriber) {

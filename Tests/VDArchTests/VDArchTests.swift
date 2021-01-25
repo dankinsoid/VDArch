@@ -32,7 +32,7 @@ final class VDArchTests: XCTestCase {
 		store1.dispatch(EmptyAction()) { _ in expectation1.fulfill() }
 		stores.dispatch(EmptyAction()) { _ in expectation2.fulfill() }
 		waitForExpectations(timeout: 6, handler: nil)
-		let expected = 4
+		let expected = 1
 		XCTAssert(subscriber.count == expected, "expected \(expected), got: \(subscriber.count)")
 	}
 	
@@ -44,13 +44,13 @@ final class VDArchTests: XCTestCase {
 	private final class Subscriber<State: StateType>: StoreSubscriber, ObserverType {
 		var count = 0
 		
-		func newState(state: State) {
+		func newState(state: State, oldState: State?) {
 			count += 1
 		}
 		
 		func on(_ event: Event<State>) {
 			if case .next(let state) = event {
-				newState(state: state)
+				newState(state: state, oldState: nil)
 			}
 		}
 		

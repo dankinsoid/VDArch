@@ -10,7 +10,7 @@ import VDKit
 public protocol AnyStoreSubscriber {
 	// swiftlint:disable:next identifier_name
 	var objectIdentifier: ObjectIdentifier { get }
-	func _newState(state: Any)
+	func _newState(state: Any, oldState: Any?)
 }
 
 extension AnyStoreSubscriber where Self: AnyObject {
@@ -19,7 +19,7 @@ extension AnyStoreSubscriber where Self: AnyObject {
 
 struct StoreSubscriberHashable: Hashable {
 	let getObjectIdentifier: () -> ObjectIdentifier
-	let newState: (Any) -> Void
+	let newState: (Any, Any?) -> Void
 	
 	init(_ subscriber: AnyStoreSubscriber) {
 		self.getObjectIdentifier = { subscriber.objectIdentifier }
@@ -38,16 +38,16 @@ struct StoreSubscriberHashable: Hashable {
 
 public protocol StoreSubscriber: AnyStoreSubscriber {
 	associatedtype StoreSubscriberStateType
-	func newState(state: StoreSubscriberStateType)
+	func newState(state: StoreSubscriberStateType, oldState: StoreSubscriberStateType?)
 }
 
 public struct MapStoreSubscriber<StoreSubscriberStateType>: StoreSubscriber {
-	let subscribe: (StoreSubscriberStateType) -> Void
+	let subscribe: (StoreSubscriberStateType, StoreSubscriberStateType?) -> Void
 	let getObjectIdentifier: () -> ObjectIdentifier
 	public var objectIdentifier: ObjectIdentifier { getObjectIdentifier() }
 	
-	public func newState(state: StoreSubscriberStateType) {
-		subscribe(state)
+	public func newState(state: StoreSubscriberStateType, oldState: StoreSubscriberStateType?) {
+		subscribe(state, oldState)
 	}
 	
 }
@@ -55,14 +55,19 @@ public struct MapStoreSubscriber<StoreSubscriberStateType>: StoreSubscriber {
 extension StoreSubscriber {
 	
 	// swiftlint:disable:next identifier_name
-	public func _newState(state: Any) {
+	public func _newState(state: Any, oldState: Any?) {
 		if let typedState = state as? StoreSubscriberStateType {
-			newState(state: typedState)
+			newState(state: typedState, oldState: oldState as? StoreSubscriberStateType)
 		}
 	}
 	
 	public func map<T>(_ block: @escaping (T) -> StoreSubscriberStateType) -> MapStoreSubscriber<T> {
-		MapStoreSubscriber(subscribe: { self.newState(state: block($0)) }, getObjectIdentifier: { self.objectIdentifier })
+		MapStoreSubscriber(
+			subscribe: { new, old in
+				self.newState(state: block(new), oldState: old.map(block))
+			},
+			getObjectIdentifier: { self.objectIdentifier }
+		)
 	}
 	
 }
@@ -70,7 +75,12 @@ extension StoreSubscriber {
 extension StoreSubscriber where StoreSubscriberStateType: OptionalProtocol {
 	
 	public func skipNil() -> MapStoreSubscriber<StoreSubscriberStateType.Wrapped> {
-		MapStoreSubscriber(subscribe: { newState(state: .init(.some($0))) }, getObjectIdentifier: { self.objectIdentifier })
+		MapStoreSubscriber(
+			subscribe: { new, old in
+				newState(state: .init(.some(new)), oldState: old.map { .init(.some($0)) })
+			},
+			getObjectIdentifier: { self.objectIdentifier }
+		)
 	}
 	
 }

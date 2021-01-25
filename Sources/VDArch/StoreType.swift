@@ -28,7 +28,8 @@ public protocol StoreType: DispatchingStoreType {
 	- parameter subscriber: Subscriber that will receive store updates
 	- note: Subscriptions are not ordered, so an order of state updates cannot be guaranteed.
 	*/
-	func subscribe<S: StoreSubscriber>(_ subscriber: S) where S.StoreSubscriberStateType == State
+	@discardableResult
+	func subscribe<S: StoreSubscriber>(_ subscriber: S) -> StoreUnsubscriber where S.StoreSubscriberStateType == State
 	
 	/**
 	Unsubscribes the provided subscriber. The subscriber will no longer

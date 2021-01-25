@@ -88,26 +88,35 @@ open class Store<State: StateType>: ConnectableStoreType {
 				})
 	}
 	
-	func _subscribe<S: StoreSubscriber>(_ subscriber: S, sendCurrent: Bool) where State == S.StoreSubscriberStateType {
+	func _subscribe<S: StoreSubscriber>(_ subscriber: S, sendCurrent: Bool) -> StoreUnsubscriber where State == S.StoreSubscriberStateType {
 		subscriptions.update(with: StoreSubscriberHashable(subscriber))
 		if sendCurrent {
-			subscriber.newState(state: state)
+			subscriber.newState(state: state, oldState: nil)
+		}
+		return StoreUnsubscriber {[weak self] in
+			self?.unsubscribe(subscriber)
 		}
 	}
 	
-	open func observeActions<S: StoreSubscriber>(_ subscriber: S) where S.StoreSubscriberStateType == Action {
+	@discardableResult
+	open func observeActions<S: StoreSubscriber>(_ subscriber: S) -> StoreUnsubscriber where S.StoreSubscriberStateType == Action {
 		_observeActions(subscriber)
 	}
 	
-	func _observeActions(_ subscriber: AnyStoreSubscriber) {
+	@discardableResult
+	open func observeActions<S: StoreSubscriber>(_ subscriber: S) -> StoreUnsubscriber where S.StoreSubscriberStateType: Action {
+		_observeActions(subscriber)
+	}
+	
+	func _observeActions(_ subscriber: AnyStoreSubscriber) -> StoreUnsubscriber {
 		actionSubscriptions.update(with: StoreSubscriberHashable(subscriber))
+		return StoreUnsubscriber {[weak self] in
+			self?.unsubscribe(subscriber)
+		}
 	}
 	
-	open func observeActions<S: StoreSubscriber>(_ subscriber: S) where S.StoreSubscriberStateType: Action {
-		_observeActions(subscriber)
-	}
-	
-	open func subscribe<S: StoreSubscriber>(_ subscriber: S) where S.StoreSubscriberStateType == State {
+	@discardableResult
+	open func subscribe<S: StoreSubscriber>(_ subscriber: S) -> StoreUnsubscriber where S.StoreSubscriberStateType == State {
 		_subscribe(subscriber, sendCurrent: true)
 	}
 	
@@ -128,13 +137,14 @@ open class Store<State: StateType>: ConnectableStoreType {
 	
 	final func notify(action: Action) {
 		actionSubscriptions.forEach {
-			$0.newState(action)
+			$0.newState(action, nil)
 		 }
 	}
 	
 	final func notify(oldValue: State) {
+		guard state != oldValue else { return }
 		subscriptions.forEach {
-			$0.newState(state)
+			$0.newState(state, oldValue)
 		}
 	}
 	
@@ -151,14 +161,14 @@ open class Store<State: StateType>: ConnectableStoreType {
 	}
 	
 	@discardableResult
-	open func connect(reducer: @escaping Reducer<State>) -> ReducerDisconnecter {
+	open func connect(reducer: @escaping Reducer<State>) -> StoreUnsubscriber {
 		let id = UUID()
 		lock.protect {
 			self.reducers[id] = reducer
 			self.ids.append(id)
 		}
-		return ReducerDisconnecter {[weak self] in
-			self?.disconnect(id: id)
+		return StoreUnsubscriber {[weak self] in
+			self?.unsubscribe(id: id)
 		}
 	}
 	
@@ -184,7 +194,7 @@ open class Store<State: StateType>: ConnectableStoreType {
 		return result
 	}
 	
-	private func disconnect(id: UUID) {
+	private func unsubscribe(id: UUID) {
 		lock.lock()
 		reducers[id] = nil
 		if let i = ids.lastIndex(of: id) {

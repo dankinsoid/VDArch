@@ -26,8 +26,10 @@ public protocol DispatchingStoreType {
 	- parameter action: The action that is being dispatched to the store
 	*/
 	func dispatch(_ action: Action)
-	func observeActions<S: StoreSubscriber>(_ subscriber: S) where S.StoreSubscriberStateType == Action
-	func observeActions<S: StoreSubscriber>(_ subscriber: S) where S.StoreSubscriberStateType: Action
+	@discardableResult
+	func observeActions<S: StoreSubscriber>(_ subscriber: S) -> StoreUnsubscriber where S.StoreSubscriberStateType == Action
+	@discardableResult
+	func observeActions<S: StoreSubscriber>(_ subscriber: S) -> StoreUnsubscriber where S.StoreSubscriberStateType: Action
 }
 
 extension DispatchingStoreType {

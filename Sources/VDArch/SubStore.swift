@@ -27,7 +27,7 @@ final class Substore<ParentState: StateType, State: StateType>: Store<State> {
 	}
 	
 	@discardableResult
-	override func connect(reducer: @escaping Reducer<State>) -> ReducerDisconnecter {
+	override func connect(reducer: @escaping Reducer<State>) -> StoreUnsubscriber {
 		parent.connect(reducer: reducer, lens: lens)
 	}
 	
@@ -35,7 +35,12 @@ final class Substore<ParentState: StateType, State: StateType>: Store<State> {
 		parent.unsubscribe(subscriber)
 	}
 	
-	override func subscribe<S: StoreSubscriber>(_ subscriber: S) where S.StoreSubscriberStateType == State {
+	override func _observeActions(_ subscriber: AnyStoreSubscriber) -> StoreUnsubscriber {
+		parent._observeActions(subscriber)
+	}
+	
+	@discardableResult
+	override func subscribe<S: StoreSubscriber>(_ subscriber: S) -> StoreUnsubscriber where S.StoreSubscriberStateType == State {
 		parent.subscribe(
 			subscriber.map {[lens] in
 				lens.get($0)
