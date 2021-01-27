@@ -7,20 +7,20 @@
 
 import Foundation
 
-open class Stores<A: StateType, B: StateType>: Store<Union<A, B>> {
+open class Stores<A: StateType, B: StateType>: Store<UnionState<A, B>> {
 	public let store1: Store<A>
 	public let store2: Store<B>
-	override public var state: Union<A, B> {
-		Union(store1.state, store2.state)
+	override public var state: UnionState<A, B> {
+		UnionState(store1.state, store2.state)
 	}
 	
-	public init(_ store1: Store<A>, _ store2: Store<B>, middleware: [Middleware<Union<A, B>>] = []) {
+	public init(_ store1: Store<A>, _ store2: Store<B>, middleware: [Middleware<UnionState<A, B>>] = []) {
 		self.store1 = store1
 		self.store2 = store2
-		super.init(state: Union(store1.state, store2.state), middleware: middleware)
+		super.init(state: UnionState(store1.state, store2.state), middleware: middleware)
 	}
 	
-	public convenience init(state1: A, state2: B, reducer: @escaping Reducer<State>, middleware: [Middleware<Union<A, B>>] = []) {
+	public convenience init(state1: A, state2: B, reducer: @escaping Reducer<State>, middleware: [Middleware<UnionState<A, B>>] = []) {
 		self.init(
 			Store(state: state1),
 			Store(state: state2),
@@ -40,13 +40,13 @@ open class Stores<A: StateType, B: StateType>: Store<Union<A, B>> {
 	}
 	
 	@discardableResult
-	override open func connect(reducer: @escaping Reducer<Union<A, B>>) -> StoreUnsubscriber {
+	override open func connect(reducer: @escaping Reducer<UnionState<A, B>>) -> StoreUnsubscriber {
 		let def = state
 		let first = store1.connect {[weak self] action, state in
-			reducer(action, self.map { Union(state, $0.store2.state)} ?? def).a
+			reducer(action, self.map { UnionState(state, $0.store2.state)} ?? def).a
 		}
 		let second = store2.connect {[weak self] action, state in
-			reducer(action, self.map { Union($0.store1.state, state) } ?? def).b
+			reducer(action, self.map { UnionState($0.store1.state, state) } ?? def).b
 		}
 		return StoreUnsubscriber {
 			first.unsubscribe()
@@ -59,13 +59,13 @@ open class Stores<A: StateType, B: StateType>: Store<Union<A, B>> {
 		let def = state
 		let unsubscribe1 = store1._subscribe(
 			subscriber.map {[weak self] a in
-				self.map { Union(a, $0.store2.state) } ?? def
+				self.map { UnionState(a, $0.store2.state) } ?? def
 			},
 			sendCurrent: false
 		)
 		let unsubscribe2 = store2._subscribe(
 			subscriber.map {[weak self] b in
-				self.map { Union($0.store1.state, b) } ?? def
+				self.map { UnionState($0.store1.state, b) } ?? def
 			},
 			sendCurrent: sendCurrent
 		)

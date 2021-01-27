@@ -7,7 +7,7 @@
 
 import Foundation
 
-public struct Union<A, B> {
+public struct UnionState<A, B> {
 	public var a: A
 	public var b: B
 	
@@ -17,6 +17,8 @@ public struct Union<A, B> {
 	}
 }
 
-extension Union: StateType where A: StateType, B: StateType {}
-extension Union: Equatable where A: Equatable, B: Equatable {}
-extension Union: Hashable where A: Hashable, B: Hashable {}
+extension UnionState: StateType where A: StateType, B: StateType {}
+extension UnionState: Equatable where A: Equatable, B: Equatable {}
+extension UnionState: Hashable where A: Hashable, B: Hashable {}
+extension UnionState: Decodable where A: Decodable, B: Decodable {}
+extension UnionState: Encodable where A: Encodable, B: Encodable {}

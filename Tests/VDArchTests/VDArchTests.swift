@@ -27,7 +27,7 @@ final class VDArchTests: XCTestCase {
 		let store1 = Store(state: State())
 		let store2 = Store(state: State2(), queue: .main)
 		let stores = Stores(store1, store2)
-		let subscriber = Subscriber<Union<State, State2>>()
+		let subscriber = Subscriber<UnionState<State, State2>>()
 		_ = stores.rx => subscriber
 		store1.dispatch(EmptyAction()) { _ in expectation1.fulfill() }
 		stores.dispatch(EmptyAction()) { _ in expectation2.fulfill() }
