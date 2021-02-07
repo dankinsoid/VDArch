@@ -16,7 +16,7 @@ extension StoreSubscriber {
 	public func asObserver() -> AnyObserver<StoreSubscriberStateType> {
 		AnyObserver {
 			guard case .next(let state) = $0 else { return }
-			self.newState(state: state)
+			self.newState(state: state, oldState: nil)
 		}
 	}
 	
@@ -42,18 +42,46 @@ public struct RxStore<Store: StoreType>: ObservableType {
 		base = store
 	}
 	
-	public subscript<T>(dynamicMember keyPath: KeyPath<Element, T>) -> Observable<T> {
-		return map { $0[keyPath: keyPath] }
+	public subscript<T>(dynamicMember keyPath: KeyPath<Element, T>) -> StoreObservable<Store, T> {
+		StoreObservable<Store, T>(base: base, condition: {_, _ in true }, map: { $0[keyPath: keyPath] })
+	}
+	
+	public subscript<T: Equatable>(dynamicMember keyPath: KeyPath<Element, T>) -> StoreObservable<Store, T> {
+		StoreObservable<Store, T>(base: base, condition: !=, map: { $0[keyPath: keyPath] })
 	}
 	
 	public func subscribe<Observer: ObserverType>(_ observer: Observer) -> Disposable where Store.State == Observer.Element {
-		var subscriber: RxStoreSubscriber<Store.State>? = RxStoreSubscriber()
-		let disposable1 = subscriber?.subject.subscribe(observer) ?? Disposables.create()
-		base.subscribe(subscriber!)
-		let disposable2 = Disposables.create {
-			subscriber = nil
+		let subscriber = RxStoreSubscriber<Store.State> { new, _ in
+			observer.onNext(new)
 		}
-		return Disposables.create(disposable1, disposable2)
+		return Disposables.create(with: base.subscribe(subscriber).unsubscribe)
+	}
+	
+}
+
+@dynamicMemberLookup
+public struct StoreObservable<Store: StoreType, Element>: ObservableType {
+	public let base: Store
+	let condition: (Element, Element?) -> Bool
+	let map: (Store.State) -> Element
+	
+	public subscript<T>(dynamicMember keyPath: KeyPath<Element, T>) -> StoreObservable<Store, T> {
+		StoreObservable<Store, T>(base: base, condition: {_, _ in true}, map: {[map] in map($0)[keyPath: keyPath] })
+	}
+	
+	public subscript<T: Equatable>(dynamicMember keyPath: KeyPath<Element, T>) -> StoreObservable<Store, T> {
+		StoreObservable<Store, T>(base: base, condition: !=, map: {[map] in map($0)[keyPath: keyPath] })
+	}
+	
+	public func subscribe<Observer: ObserverType>(_ observer: Observer) -> Disposable where Element == Observer.Element {
+		let subscriber = RxStoreSubscriber<Store.State> {[map] _new, _old in
+			let new = map(_new)
+			let old = _old.map(map)
+			if condition(new, old) {
+				observer.onNext(new)
+			}
+		}
+		return Disposables.create(with: base.subscribe(subscriber).unsubscribe)
 	}
 	
 }
@@ -62,25 +90,25 @@ extension RxStore where Store: DispatchingStoreType {
 	
 	public var actions: Observable<Action> {
 		Observable.create { observer in
-			var subscriber: RxStoreSubscriber<Action>? = RxStoreSubscriber()
-			let disposable1 = subscriber?.subject.subscribe(observer) ?? Disposables.create()
-			base.observeActions(subscriber!)
-			let disposable2 = Disposables.create {
-				subscriber = nil
+			let subscriber = RxStoreSubscriber<Action> { new, old in
+				observer.onNext(new)
 			}
-			return Disposables.create(disposable1, disposable2)
+			return Disposables.create(with:  base.observeActions(subscriber).unsubscribe)
 		}
 	}
 	
 }
 
 fileprivate final class RxStoreSubscriber<Element>: StoreSubscriber {
-	let subject = PublishSubject<Element>()
+	let observer: (Element, Element?) -> Void
 	
-	public func newState(state: Element) {
-		subject.onNext(state)
+	init(observer: @escaping (Element, Element?) -> Void) {
+		self.observer = observer
 	}
 	
+	func newState(state: Element, oldState: Element?) {
+		observer(state, oldState)
+	}
 }
 
 extension Reactive where Base: ViewProtocol {
@@ -91,10 +119,10 @@ extension Reactive where Base: ViewProtocol {
 	
 }
 
-extension ReducerDisconnecter: Disposable {
+extension StoreUnsubscriber: Disposable {
 	
 	public func dispose() {
-		disconnect()
+		unsubscribe()
 	}
 	
 }

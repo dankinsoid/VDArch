@@ -16,12 +16,12 @@ public protocol ReducerConvertible {
 
 public protocol ReducerBaseModule: ReducerConvertible {
 	associatedtype State: Equatable
-	func reduceAny(action: Action, state: State?) -> State
+	func reduceAny(action: Action, state: State) -> State
 }
 
 extension ReducerBaseModule {
 	
-	public func reduce(actions: Action..., state: State?) -> State? {
+	public func reduce(actions: Action..., state: State) -> State {
 		var state = state
 		for action in actions {
 			state = reduceAny(action: action, state: state)
@@ -38,15 +38,13 @@ extension ReducerBaseModule {
 public protocol ReducerModule: ReducerConvertible {
 	associatedtype Event: Action
 	associatedtype State: Equatable
-	var defaultState: State { get }
 	func reduce(action: Event, state: State) -> State
 }
 
 extension ReducerModule {
 	
-	public func reduceAny(action: Action, state: State?) -> State {
-		guard let event = action as? Event else { return state ?? defaultState }
-		guard let state = state else { return defaultState }
+	public func reduceAny(action: Action, state: State) -> State {
+		guard let event = action as? Event else { return state }
 		return reduce(action: event, state: state)
 	}
 	
@@ -62,11 +60,10 @@ public protocol EventSource {
 
 extension ReducerModule where Self: AnyObject {
 	
-	public var weakReducer: Reducer<State> {
-		let def = defaultState
+	public func weakReducer(default defaultState: State) -> Reducer<State> {
 		return {[weak self] in
-			guard let event = $0 as? Event else { return def }
-			return self?.reduce(action: event, state: $1 ?? def) ?? def
+			guard let event = $0 as? Event else { return defaultState }
+			return self?.reduce(action: event, state: $1) ?? defaultState
 		}
 	}
 	
@@ -74,9 +71,8 @@ extension ReducerModule where Self: AnyObject {
 
 extension ReducerConvertible {
 	
-	public func asGlobal<State>(with lens: Lens<State, ReducerStateType>, default value: State) -> Reducer<State> {
+	public func asGlobal<State>(with lens: Lens<State, ReducerStateType>) -> Reducer<State> {
 		return { action, state in
-			let state = state ?? value
 			return lens.set(state, self.asReducer()(action, lens.get(state)))
 		}
 	}

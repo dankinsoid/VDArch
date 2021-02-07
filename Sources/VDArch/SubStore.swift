@@ -16,18 +16,18 @@ final class Substore<ParentState: StateType, State: StateType>: Store<State> {
 		lens.get(parent.state)
 	}
 	
-	init(store: Store<ParentState>, lens: Lens<ParentState, State>, on queue: DispatchQueue) {
+	init(store: Store<ParentState>, lens: Lens<ParentState, State>) {
 		parent = store
 		self.lens = lens
-		super.init(state: lens.get(store.state), middleware: [], queue: queue, automaticallySkipsRepeats: true)
+		super.init(state: lens.get(store.state), middleware: [])
 	}
 	
-	override func defaultDispatch(action: Action) {
-		parent.dispatch(action, on: queue)
+	override func defaultDispatch(action: Action, completion: ((State) -> Void)?) {
+		parent.dispatch(action, completion: { completion?(self.lens.get($0)) })
 	}
 	
 	@discardableResult
-	override func connect(reducer: @escaping Reducer<State>) -> ReducerDisconnecter {
+	override func connect(reducer: @escaping Reducer<State>) -> StoreUnsubscriber {
 		parent.connect(reducer: reducer, lens: lens)
 	}
 	
@@ -35,17 +35,17 @@ final class Substore<ParentState: StateType, State: StateType>: Store<State> {
 		parent.unsubscribe(subscriber)
 	}
 	
-	override func subscribe<S: StoreSubscriber>(_ subscriber: S) where S.StoreSubscriberStateType == State {
-		parent.subscribe(subscriber, transform: {[lens] in $0.select(lens.get) })
+	override func _observeActions(_ subscriber: AnyStoreSubscriber) -> StoreUnsubscriber {
+		parent._observeActions(subscriber)
 	}
 	
-	override func subscribe<S: StoreSubscriber>(
-		_ subscriber: S,
-		transform: ((Subscription<State>) -> Subscription<S.StoreSubscriberStateType>)
-	) {
-		parent.subscribe(subscriber) {[lens] in
-			transform($0.select(lens.get))
-		}
+	@discardableResult
+	override func subscribe<S: StoreSubscriber>(_ subscriber: S) -> StoreUnsubscriber where S.StoreSubscriberStateType == State {
+		parent.subscribe(
+			subscriber.map {[lens] in
+				lens.get($0)
+			}
+		)
 	}
 	
 }

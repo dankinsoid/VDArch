@@ -9,37 +9,37 @@
 import Foundation
 
 public protocol ConnectableStoreType: StoreType {
-	func connect(reducer: @escaping Reducer<State>) -> ReducerDisconnecter
+	func connect(reducer: @escaping Reducer<State>) -> StoreUnsubscriber
 }
 
 extension ConnectableStoreType {
 	
-	public func connect<SubState>(reducer: @escaping Reducer<SubState>, lens: Lens<State, SubState>) -> ReducerDisconnecter {
+	public func connect<SubState>(reducer: @escaping Reducer<SubState>, lens: Lens<State, SubState>) -> StoreUnsubscriber {
 		connect(reducer: ReducerWrapped(reducer), lens: lens)
 	}
 	
-	public func connect<SubState>(reducer: @escaping Reducer<SubState>, at keyPath: WritableKeyPath<State, SubState>) -> ReducerDisconnecter {
+	public func connect<SubState>(reducer: @escaping Reducer<SubState>, at keyPath: WritableKeyPath<State, SubState>) -> StoreUnsubscriber {
 		connect(reducer: reducer, lens: Lens(at: keyPath))
 	}
 	
-	public func connect<Reducer: ReducerConvertible>(reducer: Reducer, lens: Lens<State, Reducer.ReducerStateType>) -> ReducerDisconnecter {
-		connect(reducer: reducer.asGlobal(with: lens, default: state))
+	public func connect<Reducer: ReducerConvertible>(reducer: Reducer, lens: Lens<State, Reducer.ReducerStateType>) -> StoreUnsubscriber {
+		connect(reducer: reducer.asGlobal(with: lens))
 	}
 	
-	public func connect<Reducer: ReducerConvertible>(reducer: Reducer, at keyPath: WritableKeyPath<State, Reducer.ReducerStateType>) -> ReducerDisconnecter {
+	public func connect<Reducer: ReducerConvertible>(reducer: Reducer, at keyPath: WritableKeyPath<State, Reducer.ReducerStateType>) -> StoreUnsubscriber {
 		connect(reducer: reducer, lens: Lens(at: keyPath))
 	}
 	
-	public func connect<Reducer: ReducerConvertible>(reducer: Reducer, at keyPath: WritableKeyPath<State, Reducer.ReducerStateType?>, or value: Reducer.ReducerStateType) -> ReducerDisconnecter {
+	public func connect<Reducer: ReducerConvertible>(reducer: Reducer, at keyPath: WritableKeyPath<State, Reducer.ReducerStateType?>, or value: Reducer.ReducerStateType) -> StoreUnsubscriber {
 		connect(reducer: reducer, lens: Lens(at: keyPath, or: value))
 	}
 	
 	@discardableResult
-	public func connect<Reducer: ReducerConvertible>(reducer: Reducer) -> ReducerDisconnecter where Reducer.ReducerStateType == State {
+	public func connect<Reducer: ReducerConvertible>(reducer: Reducer) -> StoreUnsubscriber where Reducer.ReducerStateType == State {
 		connect(reducer: reducer.asReducer())
 	}
 	
-	public func connect<Reducer: ReducerConvertible, Key: Hashable>(reducer: Reducer, at keyPath: WritableKeyPath<State, [Key: Reducer.ReducerStateType]?>, key: Key, or value: Reducer.ReducerStateType) -> ReducerDisconnecter {
+	public func connect<Reducer: ReducerConvertible, Key: Hashable>(reducer: Reducer, at keyPath: WritableKeyPath<State, [Key: Reducer.ReducerStateType]?>, key: Key, or value: Reducer.ReducerStateType) -> StoreUnsubscriber {
 		connect(
 			reducer: reducer,
 			lens: Lens(
@@ -60,11 +60,11 @@ extension ConnectableStoreType {
 	
 }
 
-public struct ReducerDisconnecter {
+public struct StoreUnsubscriber {
 	
 	let action: () -> Void
 	
-	public func disconnect() {
+	public func unsubscribe() {
 		action()
 	}
 	

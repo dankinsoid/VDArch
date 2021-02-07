@@ -6,4 +6,4 @@
 //  Copyright © 2020 Daniil. All rights reserved.
 //
 
-public protocol StateType { }
+public protocol StateType: Equatable { }
