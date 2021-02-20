@@ -44,7 +44,7 @@ extension ViewProtocol {
 		disposables.append(
 			Observable.merge(events()).flatMap {[weak store] event -> Observable<Action> in
 				guard let state = store?.state else { return .never() }
-				return viewModel.map(event: event, state: getter(state)).catchError { _ in .never() }
+				return viewModel.map(event: event, state: getter(state)).catch { _ in .never() }
 			}
 			.bind(to: store.rx.dispatcher)
 		)
@@ -62,7 +62,7 @@ extension ViewProtocol {
 		var disposables = bind(state: driver)
 		let rxEvents = Observable.merge(events()).flatMap {[weak viewStore, weak modelStore] event -> Observable<Action> in
 			guard let model = modelStore?.state, let view = viewStore?.state else { return .never() }
-			return viewModel.map(event: event, state: getter(model, view)).catchError { _ in .never() }
+			return viewModel.map(event: event, state: getter(model, view)).catch { _ in .never() }
 		}
 		.share()
 		disposables.append(rxEvents.bind(to: viewStore.rx.dispatcher))

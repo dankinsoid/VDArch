@@ -84,17 +84,6 @@ extension StateDriver {
 	
 }
 
-@_functionBuilder
-public struct ArrayBuilder {
-	
-	public static func buildBlock() {}
-	
-	public static func buildBlock<T>(_ disposables: T...) -> [T] {
-		return disposables
-	}
-	
-}
-
 extension ObservableConvertibleType {
 	
 	public func asState() -> StateDriver<Element> {

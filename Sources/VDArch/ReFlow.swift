@@ -50,7 +50,7 @@ public final class FlowCoordinator {
 	}
 	
 	private func subscribe(contributor: FlowContributor) {
-		stepper.takeUntil(contributor.finish.asObservable())
+		stepper.take(until: contributor.finish.asObservable())
 			.subscribe(
 				onNext: {[weak self] in
 					if let newContributor = contributor.flow.navigate(to: $0) {
