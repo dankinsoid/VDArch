@@ -17,10 +17,10 @@ let package = Package(
 				),
     ],
     dependencies: [
-        .package(url: "https://github.com/ReactiveX/RxSwift.git", from: "5.1.1"),
-        .package(url: "https://github.com/dankinsoid/VDKit.git", from: "1.0.31"),
+        .package(url: "https://github.com/ReactiveX/RxSwift.git", from: "6.0.0"),
+        .package(url: "https://github.com/dankinsoid/VDKit.git", from: "1.7.0"),
         .package(url: "https://github.com/dankinsoid/VDFlow.git", from: "1.0.36"),
-        .package(url: "https://github.com/dankinsoid/RxOperators.git", from: "1.0.22")
+        .package(url: "https://github.com/dankinsoid/RxOperators.git", from: "2.8.0")
     ],
     targets: [
         // Targets are the basic building blocks of a package. A target can define a module or a test suite.
