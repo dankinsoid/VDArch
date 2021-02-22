@@ -13,9 +13,9 @@ import RxOperators
 public protocol ViewProtocol {
 	associatedtype Properties
 	associatedtype Events
-	
-	func bind(state: StateDriver<Properties>) -> [Disposable]
-	func events() -> [Observable<Events>]
+	typealias EventsBuilder = ObservableBuilder<Events>
+	func bind(state: StateDriver<Properties>) -> Disposable
+	func events() -> Observable<Events>
 }
 
 public protocol ViewModelProtocol {
@@ -40,15 +40,15 @@ extension ViewProtocol {
 	public func bind<VM: ViewModelProtocol, State: StateType>(_ viewModel: VM, in store: Store<State>, getter: @escaping (State) -> VM.ModelState) -> Disposable where VM.ViewState == Properties, VM.ViewEvents == Events {
 		let source = store.rx.map(getter).skipEqual()
 		let driver = source.map { viewModel.map(state: $0) }.asState()
-		var disposables = bind(state: driver)
-		disposables.append(
-			Observable.merge(events()).flatMap {[weak store] event -> Observable<Action> in
+		let disposables = bind(state: driver)
+		return Disposables.create(
+			disposables,
+			events().flatMap {[weak store] event -> Observable<Action> in
 				guard let state = store?.state else { return .never() }
 				return viewModel.map(event: event, state: getter(state)).catch { _ in .never() }
 			}
 			.bind(to: store.rx.dispatcher)
 		)
-		return Disposables.create(disposables)
 	}
 	
 	public func bind<VM: ViewModelProtocol, MS: StateType, VS: StateType>(_ viewModel: VM, modelStore: Store<MS>, viewStore: Store<VS>, getter: @escaping (MS, VS) -> VM.ModelState) -> Disposable where VM.ViewState == Properties, VM.ViewEvents == Events {
@@ -59,17 +59,19 @@ extension ViewProtocol {
 			source = Observable.combineLatest(modelStore.rx, viewStore.rx).map(getter).skipEqual()
 		}
 		let driver = source.map { viewModel.map(state: $0) }.asState()
-		var disposables = bind(state: driver)
-		let rxEvents = Observable.merge(events()).flatMap {[weak viewStore, weak modelStore] event -> Observable<Action> in
+		let disposables = bind(state: driver)
+		let rxEvents = events().flatMap {[weak viewStore, weak modelStore] event -> Observable<Action> in
 			guard let model = modelStore?.state, let view = viewStore?.state else { return .never() }
 			return viewModel.map(event: event, state: getter(model, view)).catch { _ in .never() }
 		}
 		.share()
-		disposables.append(rxEvents.bind(to: viewStore.rx.dispatcher))
-		if modelStore !== viewStore {
-			disposables.append(rxEvents.bind(to: modelStore.rx.dispatcher))
+		return Disposables.build {
+			disposables
+			rxEvents.bind(to: viewStore.rx.dispatcher)
+			if modelStore !== viewStore {
+				rxEvents.bind(to: modelStore.rx.dispatcher)
+			}
 		}
-		return Disposables.create(disposables)
 	}
 	
 	public func bind<VM: ViewModelProtocol, State: StateType>(_ viewModel: VM, in store: Store<State>, at keyPath: KeyPath<State, VM.ModelState>) -> Disposable where VM.ViewState == Properties, VM.ViewEvents == Events {
@@ -85,11 +87,11 @@ extension ViewProtocol {
 	}
 	
 	public func bind<O: ObservableConvertibleType>(_ state: O) -> Disposable where O.Element == Properties {
-		Disposables.create(bind(state: StateDriver(state.asDriver())))
+		bind(state: StateDriver(state.asDriver()))
 	}
 	
 	public func bind<Source: ObservableConvertibleType, Observer: ObserverType>(source: Source, observer: Observer) -> Disposable where Source.Element == Properties, Observer.Element == Events {
-		Disposables.create(bind(source), Observable.merge(events()).bind(to: observer))
+		Disposables.create(bind(source), events().bind(to: observer))
 	}
 	
 }
