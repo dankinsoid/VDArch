@@ -12,12 +12,18 @@ import RxOperators
 
 @propertyWrapper
 @dynamicMemberLookup
-public final class Updates<Element>: ObserverType {
+public struct Updates<Element>: ObserverType {
 	public var wrappedValue: Observable<Element> { subject }
-	private let subject = PublishSubject<Element>()
+	private let subject: PublishSubject<Element>
 	public var projectedValue: RxPropertyMapper<Observable<Element>, Element> { subject.asObservable().mp }
 	
-	public init() {}
+	public init() {
+		self.subject = PublishSubject()
+	}
+	
+	public init(subject: PublishSubject<Element>) {
+		self.subject = subject
+	}
 	
 	public func on(_ event: Event<Element>) {
 		subject.on(event)

@@ -6,7 +6,6 @@ import PackageDescription
 let package = Package(
     name: "VDArch",
     platforms: [
-//        .macOS(.v10_13),
         .iOS(.v11)
     ],
     products: [
