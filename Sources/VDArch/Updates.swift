@@ -27,6 +27,10 @@ public final class Updates<Element>: ObserverType {
 		asObserver().mapObserver(map)
 	}
 	
+	public func `as`(_ element: Element) -> AnyObserver<Void> {
+		asObserver().mapObserver { element }
+	}
+	
 	public subscript<T>(dynamicMember keyPath: KeyPath<Element, T>) -> RxPropertyMapper<Observable<T>, T> {
 		subject.map(keyPath).mp
 	}
