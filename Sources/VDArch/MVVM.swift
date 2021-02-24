@@ -14,8 +14,17 @@ public protocol ViewProtocol {
 	associatedtype Properties
 	associatedtype Events
 	typealias EventsBuilder = ObservableBuilder<Events>
+	var properties: AnyObserver<Properties> { get }
+	var events: Observable<Events> { get }
+	
+	@available(*, deprecated, message: "use '@Updater var properties: AnyObserver<Properties>' instead")
 	func bind(state: StateDriver<Properties>) -> Disposable
-	func events() -> Observable<Events>
+}
+
+extension ViewProtocol {
+	public func bind(state: StateDriver<Properties>) -> Disposable {
+		state.bind(to: properties)
+	}
 }
 
 public protocol ViewModelProtocol {
@@ -39,11 +48,11 @@ extension ViewProtocol {
 	
 	public func bind<VM: ViewModelProtocol, State: StateType>(_ viewModel: VM, in store: Store<State>, getter: @escaping (State) -> VM.ModelState) -> Disposable where VM.ViewState == Properties, VM.ViewEvents == Events {
 		let source = store.rx.map(getter).skipEqual()
-		let driver = source.map { viewModel.map(state: $0) }.asState()
-		let disposables = bind(state: driver)
+		let driver = source.map { viewModel.map(state: $0) }.asDriver()
+		let disposables = driver.drive(properties)
 		return Disposables.create(
 			disposables,
-			events().flatMap {[weak store] event -> Observable<Action> in
+			events.flatMap {[weak store] event -> Observable<Action> in
 				guard let state = store?.state else { return .never() }
 				return viewModel.map(event: event, state: getter(state)).catch { _ in .never() }
 			}
@@ -58,9 +67,9 @@ extension ViewProtocol {
 		} else {
 			source = Observable.combineLatest(modelStore.rx, viewStore.rx).map(getter).skipEqual()
 		}
-		let driver = source.map { viewModel.map(state: $0) }.asState()
-		let disposables = bind(state: driver)
-		let rxEvents = events().flatMap {[weak viewStore, weak modelStore] event -> Observable<Action> in
+		let driver = source.map { viewModel.map(state: $0) }.asDriver()
+		let disposables = driver.drive(properties)
+		let rxEvents = events.flatMap {[weak viewStore, weak modelStore] event -> Observable<Action> in
 			guard let model = modelStore?.state, let view = viewStore?.state else { return .never() }
 			return viewModel.map(event: event, state: getter(model, view)).catch { _ in .never() }
 		}
@@ -87,11 +96,11 @@ extension ViewProtocol {
 	}
 	
 	public func bind<O: ObservableConvertibleType>(_ state: O) -> Disposable where O.Element == Properties {
-		bind(state: StateDriver(state.asDriver()))
+		state.asDriver().drive(properties)
 	}
 	
 	public func bind<Source: ObservableConvertibleType, Observer: ObserverType>(source: Source, observer: Observer) -> Disposable where Source.Element == Properties, Observer.Element == Events {
-		Disposables.create(bind(source), events().bind(to: observer))
+		Disposables.create(bind(source), events.bind(to: observer))
 	}
 	
 }
@@ -122,6 +131,7 @@ extension ViewProtocol where Self: AnyObject {
 }
 
 private var propertiesSubjectKey = "_propertiesSubject"
+private var eventsSubjectKey = "_eventsSubject"
 
 public struct AnyViewModel<ModelState: Equatable, ViewState, ViewEvents>: ViewModelProtocol {
 	

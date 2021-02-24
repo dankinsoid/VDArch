@@ -114,7 +114,7 @@ fileprivate final class RxStoreSubscriber<Element>: StoreSubscriber {
 extension Reactive where Base: ViewProtocol {
 	
 	public var events: Observable<Base.Events> {
-		Observable.merge(base.events())
+		base.events
 	}
 	
 }
