@@ -11,7 +11,7 @@ import RxSwift
 
 @propertyWrapper
 @dynamicMemberLookup
-public struct Updater<Element>: ObservableType {
+public struct Observer<Element>: ObservableType {
 	private let subject: PublishSubject<Element>
 	public var projectedValue: AnyObserver<Element> { subject.asObserver() }
 	public var wrappedValue: AnyObserver<Element> { subject.asObserver() }
