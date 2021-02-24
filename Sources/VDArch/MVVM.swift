@@ -22,6 +22,7 @@ public protocol ViewProtocol {
 }
 
 extension ViewProtocol {
+	
 	public func bind(state: StateDriver<Properties>) -> Disposable {
 		state.bind(to: properties)
 	}
@@ -50,14 +51,16 @@ extension ViewProtocol {
 		let source = store.rx.map(getter).skipEqual()
 		let driver = source.map { viewModel.map(state: $0) }.asDriver()
 		let disposables = driver.drive(properties)
-		return Disposables.create(
-			disposables,
+		let disposables2 = bind(StateDriver(driver))
+		return Disposables.build {
+			disposables
+			disposables2
 			events.flatMap {[weak store] event -> Observable<Action> in
 				guard let state = store?.state else { return .never() }
 				return viewModel.map(event: event, state: getter(state)).catch { _ in .never() }
 			}
 			.bind(to: store.rx.dispatcher)
-		)
+		}
 	}
 	
 	public func bind<VM: ViewModelProtocol, MS: StateType, VS: StateType>(_ viewModel: VM, modelStore: Store<MS>, viewStore: Store<VS>, getter: @escaping (MS, VS) -> VM.ModelState) -> Disposable where VM.ViewState == Properties, VM.ViewEvents == Events {
@@ -69,6 +72,7 @@ extension ViewProtocol {
 		}
 		let driver = source.map { viewModel.map(state: $0) }.asDriver()
 		let disposables = driver.drive(properties)
+		let disposables2 = bind(StateDriver(driver))
 		let rxEvents = events.flatMap {[weak viewStore, weak modelStore] event -> Observable<Action> in
 			guard let model = modelStore?.state, let view = viewStore?.state else { return .never() }
 			return viewModel.map(event: event, state: getter(model, view)).catch { _ in .never() }
@@ -76,6 +80,7 @@ extension ViewProtocol {
 		.share()
 		return Disposables.build {
 			disposables
+			disposables2
 			rxEvents.bind(to: viewStore.rx.dispatcher)
 			if modelStore !== viewStore {
 				rxEvents.bind(to: modelStore.rx.dispatcher)
@@ -95,12 +100,14 @@ extension ViewProtocol {
 		bind(viewModel, in: store, getter: { $0 })
 	}
 	
+	@DisposableBuilder
 	public func bind<O: ObservableConvertibleType>(_ state: O) -> Disposable where O.Element == Properties {
 		state.asDriver().drive(properties)
+		bind(state: state.asState())
 	}
 	
 	public func bind<Source: ObservableConvertibleType, Observer: ObserverType>(source: Source, observer: Observer) -> Disposable where Source.Element == Properties, Observer.Element == Events {
-		Disposables.create(bind(source), events.bind(to: observer))
+		Disposables.create(bind(source), bind(state: source.asState()), events.bind(to: observer))
 	}
 	
 }
