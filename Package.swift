@@ -1,4 +1,4 @@
-// swift-tools-version:5.0
+// swift-tools-version:5.2
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
@@ -6,7 +6,7 @@ import PackageDescription
 let package = Package(
     name: "VDArch",
     platforms: [
-        .iOS(.v12)
+        .iOS(.v13)
     ],
     products: [
         // Products define the executables and libraries produced by a package, and make them visible to other packages.
@@ -18,7 +18,7 @@ let package = Package(
     dependencies: [
         .package(url: "https://github.com/dankinsoid/VDKit.git", from: "1.7.0"),
         .package(url: "https://github.com/dankinsoid/VDFlow.git", from: "1.3.0"),
-        .package(url: "https://github.com/dankinsoid/CombineOperators.git", from: "1.37.0")
+        .package(url: "https://github.com/dankinsoid/CombineOperators.git", from: "1.40.0")
     ],
     targets: [
         // Targets are the basic building blocks of a package. A target can define a module or a test suite.
