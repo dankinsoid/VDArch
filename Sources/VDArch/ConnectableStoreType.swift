@@ -9,27 +9,33 @@
 import Foundation
 
 public protocol ConnectableStoreType: StoreType {
+	@discardableResult
 	func connect(reducer: @escaping Reducer<State>) -> StoreUnsubscriber
 }
 
 extension ConnectableStoreType {
 	
+	@discardableResult
 	public func connect<SubState>(reducer: @escaping Reducer<SubState>, lens: Lens<State, SubState>) -> StoreUnsubscriber {
 		connect(reducer: ReducerWrapped(reducer), lens: lens)
 	}
 	
+	@discardableResult
 	public func connect<SubState>(reducer: @escaping Reducer<SubState>, at keyPath: WritableKeyPath<State, SubState>) -> StoreUnsubscriber {
 		connect(reducer: reducer, lens: Lens(at: keyPath))
 	}
 	
+	@discardableResult
 	public func connect<Reducer: ReducerConvertible>(reducer: Reducer, lens: Lens<State, Reducer.ReducerStateType>) -> StoreUnsubscriber {
 		connect(reducer: reducer.asGlobal(with: lens))
 	}
 	
+	@discardableResult
 	public func connect<Reducer: ReducerConvertible>(reducer: Reducer, at keyPath: WritableKeyPath<State, Reducer.ReducerStateType>) -> StoreUnsubscriber {
 		connect(reducer: reducer, lens: Lens(at: keyPath))
 	}
 	
+	@discardableResult
 	public func connect<Reducer: ReducerConvertible>(reducer: Reducer, at keyPath: WritableKeyPath<State, Reducer.ReducerStateType?>, or value: Reducer.ReducerStateType) -> StoreUnsubscriber {
 		connect(reducer: reducer, lens: Lens(at: keyPath, or: value))
 	}
@@ -39,6 +45,7 @@ extension ConnectableStoreType {
 		connect(reducer: reducer.asReducer())
 	}
 	
+	@discardableResult
 	public func connect<Reducer: ReducerConvertible, Key: Hashable>(reducer: Reducer, at keyPath: WritableKeyPath<State, [Key: Reducer.ReducerStateType]?>, key: Key, or value: Reducer.ReducerStateType) -> StoreUnsubscriber {
 		connect(
 			reducer: reducer,
