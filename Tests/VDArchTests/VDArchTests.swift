@@ -6,10 +6,11 @@
 //
 
 import XCTest
-@testable import RxSwift
-@testable import RxOperators
+import Combine
+@testable import CombineOperators
 @testable import VDArch
 
+@available(iOS 13.0, *)
 final class VDArchTests: XCTestCase {
 	
 	func testExample() {
@@ -27,8 +28,8 @@ final class VDArchTests: XCTestCase {
 		let store1 = Store(state: State())
 		let store2 = Store(state: State2(), queue: .main)
 		let stores = Stores(store1, store2)
-		let subscriber = Subscriber<UnionState<State, State2>>()
-		_ = stores.rx => subscriber
+		let subscriber = _Subscriber<UnionState<State, State2>>()
+		stores.cb => subscriber
 		store1.dispatch(EmptyAction()) { _ in expectation1.fulfill() }
 		stores.dispatch(EmptyAction()) { _ in expectation2.fulfill() }
 		waitForExpectations(timeout: 6, handler: nil)
@@ -41,18 +42,28 @@ final class VDArchTests: XCTestCase {
 		("testStores", testStores)
  	]
 	
-	private final class Subscriber<State: StateType>: StoreSubscriber, ObserverType {
+	@available(iOS 13.0, *)
+	private final class _Subscriber<State: StateType>: StoreSubscriber, Subscriber {
+		
+		typealias Input = State
+		typealias Failure = Never
+		
 		var count = 0
 		
 		func newState(state: State, oldState: State?) {
 			count += 1
 		}
 		
-		func on(_ event: Event<State>) {
-			if case .next(let state) = event {
-				newState(state: state, oldState: nil)
-			}
+		func receive(subscription: Subscription) {
+			subscription.request(.unlimited)
 		}
+		
+		func receive(_ input: State) -> Subscribers.Demand {
+			newState(state: input, oldState: nil)
+			return .unlimited
+		}
+		
+		func receive(completion: Subscribers.Completion<Never>) {}
 		
 	}
 	

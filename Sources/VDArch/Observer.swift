@@ -6,30 +6,46 @@
 //
 
 import Foundation
-import RxOperators
-import RxSwift
+import CombineOperators
+import Combine
 
+@available(iOS 13.0, *)
 @propertyWrapper
 @dynamicMemberLookup
-public struct Observer<Element>: ObservableType {
-	private let subject: PublishSubject<Element>
-	public var projectedValue: AnyObserver<Element> { subject.asObserver() }
-	public var wrappedValue: AnyObserver<Element> { subject.asObserver() }
+public struct Observer<Output>: Publisher {
+	public typealias Failure = Never
+	private let subject: PassthroughSubject<Output, Never>
+	public var projectedValue: AnySubscriber<Output, Never> { subject.asSubscriber() }
+	public var wrappedValue: AnySubscriber<Output, Never> { subject.asSubscriber() }
 	
 	public init() {
-		self.subject = PublishSubject()
+		self.subject = PassthroughSubject()
 	}
 	
-	public init(subject: PublishSubject<Element>) {
+	public init(subject: PassthroughSubject<Output, Never>) {
 		self.subject = subject
 	}
 	
-	public func subscribe<Observer: ObserverType>(_ observer: Observer) -> Disposable where Element == Observer.Element {
-		subject.subscribe(observer)
+	public func receive<S: Subscriber>(subscriber: S) where Never == S.Failure, Output == S.Input {
+		subject.receive(subscriber: subscriber)
 	}
 	
-	public subscript<T>(dynamicMember keyPath: KeyPath<Element, T>) -> RxPropertyMapper<Observable<T>, T> {
-		subject.map(keyPath).mp
+	public subscript<T>(dynamicMember keyPath: KeyPath<Output, T>) -> CombinePropertyMapper<AnyPublisher<T, Never>, T> {
+		subject.map(keyPath).any().mp
 	}
 	
+}
+
+@available(iOS 13.0, *)
+extension Subject {
+	func asSubscriber() -> AnySubscriber<Output, Failure> {
+		AnySubscriber {
+			self.send(subscription: $0)
+		} receiveValue: {
+			self.send($0)
+			return .unlimited
+		} receiveCompletion: {
+			self.send(completion: $0)
+		}
+	}
 }
