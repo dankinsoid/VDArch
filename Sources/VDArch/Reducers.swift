@@ -56,7 +56,7 @@ extension ReducerModule {
 
 @available(iOS 13.0, *)
 public protocol EventSource {
-	var events: AnyPublisher<Action, Error> { get }
+	var events: AnyPublisher<Action, Never> { get }
 }
 
 extension ReducerModule where Self: AnyObject {
