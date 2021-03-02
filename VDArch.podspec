@@ -8,7 +8,7 @@
 
 Pod::Spec.new do |s|
   s.name             = 'VDArch'
-  s.version          = '1.13.0'
+  s.version          = '1.14.0'
   s.summary          = 'A short description of VDAnimation.'
   s.description      = <<-DESC
 TODO: Add long description of the pod here.
@@ -25,5 +25,5 @@ TODO: Add long description of the pod here.
   s.frameworks = 'UIKit'
   s.frameworks = 'Combine'
   s.dependency 'VD'
-  s.dependency 'CombineOperators'
+  s.dependency 'CombineOperators/CombineCocoa'
 end
