@@ -16,7 +16,7 @@ public typealias ActionPublisher = AnyPublisher<Action, Never>
 public protocol ViewProtocol {
 	associatedtype Properties
 	associatedtype Events
-	typealias EventsBuilder = MergeBuilder<Events>
+	typealias EventsBuilder = MergeBuilder<Events, Never>
 	typealias EventsPublisher = AnyPublisher<Events, Never>
 	typealias PropertiesSubscriber = AnySubscriber<Properties, Never>
 	var properties: PropertiesSubscriber { get }
