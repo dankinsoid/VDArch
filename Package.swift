@@ -6,7 +6,7 @@ import PackageDescription
 let package = Package(
     name: "VDArch",
     platforms: [
-        .iOS(.v11)
+        .iOS(.v12)
     ],
     products: [
         // Products define the executables and libraries produced by a package, and make them visible to other packages.
@@ -16,22 +16,21 @@ let package = Package(
 				),
     ],
     dependencies: [
-        .package(url: "https://github.com/ReactiveX/RxSwift.git", from: "6.0.0"),
-        .package(url: "https://github.com/dankinsoid/VDKit.git", from: "1.11.0"),
+        .package(url: "https://github.com/dankinsoid/VDKit.git", from: "1.7.0"),
         .package(url: "https://github.com/dankinsoid/VDFlow.git", from: "1.3.0"),
-        .package(url: "https://github.com/dankinsoid/RxOperators.git", from: "2.8.0")
+        .package(url: "https://github.com/dankinsoid/CombineOperators.git", from: "1.37.0")
     ],
     targets: [
         // Targets are the basic building blocks of a package. A target can define a module or a test suite.
         // Targets can depend on other targets in this package, and on products in packages which this package depends on.
-        .target(
-            name: "VDArch",
-            dependencies: ["VDKit", "VDFlow", "RxSwift", "RxOperators"]
-				),
-				.testTarget(
-					name: "VDArchTests",
-					dependencies: ["VDArch"],
-					path: "Tests"
-				)
+			.target(
+				name: "VDArch",
+				dependencies: ["VDKit", "VDFlow", "CombineOperators", .product(name: "CombineCocoa", package: "CombineOperators")]
+			),
+			.testTarget(
+				name: "VDArchTests",
+				dependencies: ["VDArch"],
+				path: "Tests"
+			)
     ]
 )

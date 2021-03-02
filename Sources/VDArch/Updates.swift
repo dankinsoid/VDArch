@@ -7,38 +7,47 @@
 //
 
 import Foundation
-import RxSwift
-import RxOperators
+import Combine
+import CombineOperators
 
+@available(iOS 13.0, *)
 @propertyWrapper
 @dynamicMemberLookup
-public struct Updates<Element>: ObserverType {
-	public var wrappedValue: Observable<Element> { subject }
-	private let subject: PublishSubject<Element>
-	public var projectedValue: RxPropertyMapper<Observable<Element>, Element> { subject.asObservable().mp }
+public final class Updates<Input>: Subscriber {
+	public typealias Failure = Never
+	
+	public var wrappedValue: AnyPublisher<Input, Never> { subject.eraseToAnyPublisher() }
+	private let subject: PassthroughSubject<Input, Never>
+	public var projectedValue: CombinePropertyMapper<PassthroughSubject<Input, Never>, Input> { subject.mp }
 	
 	public init() {
-		self.subject = PublishSubject()
+		self.subject = PassthroughSubject()
 	}
 	
-	public init(subject: PublishSubject<Element>) {
+	public init(subject: PassthroughSubject<Input, Never>) {
 		self.subject = subject
 	}
 	
-	public func on(_ event: Event<Element>) {
-		subject.on(event)
+	public func receive(subscription: Subscription) {
+		subject.send(subscription: subscription)
 	}
 	
-	public func `as`<Result>(_ map: @escaping (Result) throws -> Element) -> AnyObserver<Result> {
-		asObserver().mapObserver(map)
+	public func receive(_ input: Input) -> Subscribers.Demand {
+		subject.send(input)
+		return .unlimited
 	}
 	
-	public func `as`(_ element: Element) -> AnyObserver<Void> {
-		asObserver().mapObserver { element }
+	public func receive(completion: Subscribers.Completion<Never>) {}
+	
+	public func `as`<Result>(_ map: @escaping (Result) -> Input) -> Subscribers.MapSubscriber<Updates<Input>, Result> {
+		mapSubscriber(map)
 	}
 	
-	public subscript<T>(dynamicMember keyPath: KeyPath<Element, T>) -> RxPropertyMapper<Observable<T>, T> {
-		subject.map(keyPath).mp
+	public func `as`(_ element: Input) -> Subscribers.MapSubscriber<Updates<Input>, Void> {
+		mapSubscriber { element }
 	}
 	
+	public subscript<T>(dynamicMember keyPath: KeyPath<Input, T>) -> CombinePropertyMapper<AnyPublisher<T, Never>, T> {
+		subject.map(keyPath).any().mp
+	}
 }

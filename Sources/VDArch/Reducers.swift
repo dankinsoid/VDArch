@@ -7,7 +7,7 @@
 //
 
 import Foundation
-import RxSwift
+import Combine
 
 public protocol ReducerConvertible {
 	associatedtype ReducerStateType
@@ -54,8 +54,9 @@ extension ReducerModule {
 	
 }
 
+@available(iOS 13.0, *)
 public protocol EventSource {
-	var events: Observable<Action> { get }
+	var events: AnyPublisher<Action, Error> { get }
 }
 
 extension ReducerModule where Self: AnyObject {

@@ -7,8 +7,8 @@
 //
 
 import UIKit
-import RxSwift
-import RxCocoa
+import Combine
+import CombineCocoa
 import VDFlow
 
 public typealias StepAction = Action & FlowPathConvertable
@@ -17,6 +17,7 @@ extension FlowPath: Action {}
 extension FlowStep: Action {}
 extension NodeID: Action where Value == Void {}
 
+@available(iOS 13.0, *)
 extension FlowCoordinator {
 	
 	public func middleware<State>(as: State.Type) -> Middleware<State> {
@@ -38,5 +39,4 @@ extension FlowCoordinator {
 			}
 		}
 	}
-
 }
