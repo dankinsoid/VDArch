@@ -10,15 +10,18 @@ import Foundation
 import Combine
 import CombineOperators
 
+public typealias ActionPublisher = AnyPublisher<Action, Never>
+
 @available(iOS 13.0, *)
 public protocol ViewProtocol {
 	associatedtype Properties
 	associatedtype Events
 	typealias EventsBuilder = MergeBuilder<Events>
-	var properties: AnySubscriber<Properties, Never> { get }
-	var events: AnyPublisher<Events, Never> { get }
+	typealias EventsPublisher = AnyPublisher<Events, Never>
+	typealias PropertiesSubscriber = AnySubscriber<Properties, Never>
+	var properties: PropertiesSubscriber { get }
+	var events: EventsPublisher { get }
 	
-	@available(*, deprecated, message: "use '@Updater var properties: AnySubscriber<Properties, Never>' instead")
 	func bind(state: StateDriver<Properties>)
 }
 
@@ -37,7 +40,7 @@ public protocol ViewModelProtocol {
 	associatedtype ViewEvents
 	
 	func map(state: ModelState) -> ViewState
-	func map(event: ViewEvents, state: ModelState) -> AnyPublisher<Action, Never>
+	func map(event: ViewEvents, state: ModelState) -> ActionPublisher
 }
 
 @available(iOS 13.0, *)
@@ -47,7 +50,7 @@ extension ViewModelProtocol where ModelState == ViewState {
 
 @available(iOS 13.0, *)
 extension ViewModelProtocol where ViewEvents: Action {
-	public func map(event: ViewEvents, state: ModelState) -> AnyPublisher<Action, Never> { Just(event).any() }
+	public func map(event: ViewEvents, state: ModelState) -> ActionPublisher { Just(event).any() }
 }
 
 @available(iOS 13.0, *)
