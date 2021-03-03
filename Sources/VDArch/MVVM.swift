@@ -8,6 +8,7 @@
 
 import Foundation
 import Combine
+import CombineCocoa
 import CombineOperators
 
 public typealias ActionPublisher = AnyPublisher<Action, Never>
@@ -21,15 +22,19 @@ public protocol ViewProtocol {
 	typealias PropertiesSubscriber = AnySubscriber<Properties, Never>
 	var properties: PropertiesSubscriber { get }
 	var events: EventsPublisher { get }
+	var cancelBinding: Single<Void, Never> { get }
 	
 	func bind(state: StateDriver<Properties>)
 }
 
 @available(iOS 13.0, *)
 extension ViewProtocol {
-	public func bind(state: StateDriver<Properties>) -> Cancellable {
-		state.subscribe(properties)
-		return AnyCancellable()
+	public func bind(state: StateDriver<Properties>) {}
+}
+
+extension ViewProtocol where Self: AnyObject {
+	public var cancelBinding: Single<Void, Never> {
+		Reactive(self).deallocated.asSingle()
 	}
 }
 
@@ -56,49 +61,62 @@ extension ViewModelProtocol where ViewEvents: Action {
 @available(iOS 13.0, *)
 extension ViewProtocol {
 	
-	public func bind<VM: ViewModelProtocol, State: StateType>(_ viewModel: VM, in store: Store<State>, getter: @escaping (State) -> VM.ModelState) where VM.ViewState == Properties, VM.ViewEvents == Events {
+	@discardableResult
+	public func bind<VM: ViewModelProtocol, State: StateType>(_ viewModel: VM, in store: Store<State>, getter: @escaping (State) -> VM.ModelState) -> Cancellable where VM.ViewState == Properties, VM.ViewEvents == Events {
+		let cancellable = CancellablePublisher()
+		let cancel: Single<Void, Never> = cancellable.merge(with: cancelBinding).share().asSingle()
 		let source = store.cb.map(getter).skipEqual()
-		let driver = source.map { viewModel.map(state: $0) }.asDriver()
+		let driver = source.map { viewModel.map(state: $0) }.prefix(untilOutputFrom: cancel).asDriver()
 		driver.subscribe(properties)
 		bind(state: StateDriver(driver))
-		events.flatMap {[weak store] event -> AnyPublisher<Action, Never> in
+		events.prefix(untilOutputFrom: cancel).flatMap {[weak store] event -> AnyPublisher<Action, Never> in
 			guard let state = store?.state else { return Empty(completeImmediately: false).any() }
 			return viewModel.map(event: event, state: getter(state)).skipFailure().any()
 		}
 		.subscribe(store.cb.dispatcher)
+		return cancellable
 	}
 	
-	public func bind<VM: ViewModelProtocol, MS: StateType, VS: StateType>(_ viewModel: VM, modelStore: Store<MS>, viewStore: Store<VS>, getter: @escaping (MS, VS) -> VM.ModelState) where VM.ViewState == Properties, VM.ViewEvents == Events {
+	@discardableResult
+	public func bind<VM: ViewModelProtocol, MS: StateType, VS: StateType>(_ viewModel: VM, modelStore: Store<MS>, viewStore: Store<VS>, getter: @escaping (MS, VS) -> VM.ModelState) -> Cancellable where VM.ViewState == Properties, VM.ViewEvents == Events {
+		let cancellable = CancellablePublisher()
+		let cancel: Single<Void, Never> = cancellable.merge(with: cancelBinding).share().asSingle()
 		let source: AnyPublisher<VM.ModelState, Never>
 		if viewStore === modelStore, VM.self == MS.self {
 			source = modelStore.cb.map { getter($0, $0 as! VS) }.skipEqual().any()
 		} else {
 			source = modelStore.cb.combineLatest(viewStore.cb).map(getter).skipEqual().any()
 		}
-		let driver = source.map { viewModel.map(state: $0) }.asDriver()
+		let driver = source.map { viewModel.map(state: $0) }.prefix(untilOutputFrom: cancel).asDriver()
 		driver.subscribe(properties)
 		bind(state: StateDriver(driver))
 		
 		let cbEvents = events.skipFailure().flatMap {[weak viewStore, weak modelStore] event -> AnyPublisher<Action, Never> in
 			guard let model = modelStore?.state, let view = viewStore?.state else { return Empty<Action, Never>(completeImmediately: false).any() }
 			return viewModel.map(event: event, state: getter(model, view)).any()
-		}.share()
+		}
+		.prefix(untilOutputFrom: cancel)
+		.share()
 		
 		cbEvents.subscribe(viewStore.cb.dispatcher)
 		if modelStore !== viewStore {
-			cbEvents.bind(to: modelStore.cb.dispatcher)
+			cbEvents.subscribe(modelStore.cb.dispatcher)
 		}
+		return cancellable
 	}
 	
-	public func bind<VM: ViewModelProtocol, State: StateType>(_ viewModel: VM, in store: Store<State>, at keyPath: KeyPath<State, VM.ModelState>) where VM.ViewState == Properties, VM.ViewEvents == Events {
+	@discardableResult
+	public func bind<VM: ViewModelProtocol, State: StateType>(_ viewModel: VM, in store: Store<State>, at keyPath: KeyPath<State, VM.ModelState>) -> Cancellable where VM.ViewState == Properties, VM.ViewEvents == Events {
 		bind(viewModel, in: store, getter: { $0[keyPath: keyPath] })
 	}
 	
-	public func bind<VM: ViewModelProtocol, State: StateType>(_ viewModel: VM, in store: Store<State>, at keyPath: KeyPath<State, VM.ModelState?>, or value: VM.ModelState) where VM.ViewState == Properties, VM.ViewEvents == Events {
+	@discardableResult
+	public func bind<VM: ViewModelProtocol, State: StateType>(_ viewModel: VM, in store: Store<State>, at keyPath: KeyPath<State, VM.ModelState?>, or value: VM.ModelState) -> Cancellable where VM.ViewState == Properties, VM.ViewEvents == Events {
 		bind(viewModel, in: store, getter: { $0[keyPath: keyPath] ?? value })
 	}
 	
-	public func bind<VM: ViewModelProtocol, State: StateType>(_ viewModel: VM, in store: Store<State>) where VM.ViewState == Properties, VM.ViewEvents == Events, VM.ModelState == State {
+	@discardableResult
+	public func bind<VM: ViewModelProtocol, State: StateType>(_ viewModel: VM, in store: Store<State>) -> Cancellable where VM.ViewState == Properties, VM.ViewEvents == Events, VM.ModelState == State {
 		bind(viewModel, in: store, getter: { $0 })
 	}
 	
@@ -109,8 +127,9 @@ extension ViewProtocol {
 	}
 	
 	public func bind<Source: Publisher, Observer: Subscriber>(source: Source, observer: Observer) where Source.Output == Properties, Observer.Input == Events {
-		bind(source)
-		events.subscribe(observer.ignoreFailure())
+		let cancel = cancelBinding.share()
+		bind(source.prefix(untilOutputFrom: cancel))
+		events.prefix(untilOutputFrom: cancel).subscribe(observer.ignoreFailure())
 	}
 	
 }
