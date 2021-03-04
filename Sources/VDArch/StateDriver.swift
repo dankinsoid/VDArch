@@ -99,5 +99,5 @@ extension Publisher {
 
 @available(iOS 13.0, *)
 public func =><V: ViewProtocol, O: Publisher>(_ lhs: O, _ rhs: Reactive<V>) where O.Output == V.Properties {
-	lhs => rhs.base.properties
+	rhs.base.bind(lhs)
 }
