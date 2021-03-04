@@ -163,7 +163,7 @@ extension StoreUnsubscriber: Cancellable {
 
 @available(iOS 13.0, *)
 public func =>><V: ViewProtocol, O: Publisher>(_ lhs: O, _ rhs: Reactive<V>?) where O.Output == V.Properties, V.Properties: Equatable {
-	lhs.removeDuplicates() =>> rhs?.base.properties
+	rhs?.base.bind(lhs.removeDuplicates())
 }
 
 @available(iOS 13.0, *)
