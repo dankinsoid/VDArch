@@ -65,8 +65,8 @@ extension ViewProtocol {
 	public func bind<VM: ViewModelProtocol, State: StateType>(_ viewModel: VM, in store: Store<State>, getter: @escaping (State) -> VM.ModelState) -> Cancellable where VM.ViewState == Properties, VM.ViewEvents == Events {
 		let cancellable = CancellablePublisher()
 		let cancel: Single<Void, Never> = cancellable.merge(with: cancelBinding).share().asSingle()
-		let source = store.cb.map(getter).skipEqual()
-		let driver = source.map { viewModel.map(state: $0) }.prefix(untilOutputFrom: cancel).asDriver()
+		let source = store.cb.prefix(untilOutputFrom: cancel).map(getter).skipEqual()
+		let driver = source.map { viewModel.map(state: $0) }.asDriver()
 		driver.subscribe(properties)
 		bind(state: StateDriver(driver))
 		events.prefix(untilOutputFrom: cancel).flatMap {[weak store] event -> AnyPublisher<Action, Never> in
@@ -83,11 +83,11 @@ extension ViewProtocol {
 		let cancel: Single<Void, Never> = cancellable.merge(with: cancelBinding).share().asSingle()
 		let source: AnyPublisher<VM.ModelState, Never>
 		if viewStore === modelStore, VM.self == MS.self {
-			source = modelStore.cb.map { getter($0, $0 as! VS) }.skipEqual().any()
+			source = modelStore.cb.prefix(untilOutputFrom: cancel).map { getter($0, $0 as! VS) }.skipEqual().any()
 		} else {
-			source = modelStore.cb.combineLatest(viewStore.cb).map(getter).skipEqual().any()
+			source = modelStore.cb.prefix(untilOutputFrom: cancel).combineLatest(viewStore.cb).map(getter).skipEqual().any()
 		}
-		let driver = source.map { viewModel.map(state: $0) }.prefix(untilOutputFrom: cancel).asDriver()
+		let driver = source.map { viewModel.map(state: $0) }.asDriver()
 		driver.subscribe(properties)
 		bind(state: StateDriver(driver))
 		
