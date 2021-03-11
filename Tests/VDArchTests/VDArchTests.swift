@@ -22,19 +22,23 @@ final class VDArchTests: XCTestCase {
 	}
 	
 	func testStores() {
-		let expectation1 = expectation(description: "1")
-		let expectation2 = expectation(description: "2")
+		let expectations = (0..<3).map { expectation(description: "\($0)") }
+		var count = 0
+		let store = Store(reducer: { _, state in
+			var result = state
+			result.double = .random(in: 0...10)
+			return result
+		}, state: State())
+		var cancellable = CancellablePublisher()
+		store.cb.prefix(untilOutputFrom: cancellable).subscribe { _ in
+			expectations[count].fulfill()
+			count += 1
+		}
+		store.dispatch(EmptyAction())
+		store.dispatch(EmptyAction())
 		
-		let store1 = Store(state: State())
-		let store2 = Store(state: State2(), queue: .main)
-		let stores = Stores(store1, store2)
-		let subscriber = _Subscriber<UnionState<State, State2>>()
-		stores.cb => subscriber
-		store1.dispatch(EmptyAction()) { _ in expectation1.fulfill() }
-		stores.dispatch(EmptyAction()) { _ in expectation2.fulfill() }
 		waitForExpectations(timeout: 6, handler: nil)
-		let expected = 1
-		XCTAssert(subscriber.count == expected, "expected \(expected), got: \(subscriber.count)")
+		XCTAssert(count == 3, "\(count)")
 	}
 	
 	static var allTests = [
