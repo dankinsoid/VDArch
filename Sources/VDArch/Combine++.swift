@@ -128,13 +128,14 @@ fileprivate final class CombineStoreSubscription<Store: StoreType, S: Subscriber
 	
 	func request(_ demand: Subscribers.Demand) {
 		unsubscriber?.unsubscribe()
-		unsubscriber = store?.subscribe(CombineStoreSubscriber(observer: {[subscriber, map, condition] _new, _old in
+		unsubscriber = store?.subscribe(CombineStoreSubscriber(observer: {[self] _new, _old in
 			let new = map(_new)
 			let old = _old.map(map)
 			if condition(new, old) {
 				_ = subscriber.receive(new)
 			}
 		}))
+		store = nil
 	}
 	
 	func cancel() {
