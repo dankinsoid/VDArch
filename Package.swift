@@ -16,8 +16,8 @@ let package = Package(
 				),
     ],
     dependencies: [
-        .package(url: "https://github.com/dankinsoid/VDKit.git", from: "1.7.0"),
-        .package(url: "https://github.com/dankinsoid/CombineOperators.git", from: "1.50.0")
+        .package(url: "https://github.com/dankinsoid/VDKit.git", from: "1.16.0"),
+        .package(url: "https://github.com/dankinsoid/CombineOperators.git", from: "1.65.0")
     ],
     targets: [
         // Targets are the basic building blocks of a package. A target can define a module or a test suite.

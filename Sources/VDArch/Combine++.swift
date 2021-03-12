@@ -50,40 +50,38 @@ public struct CombineStore<Store: StoreType>: Publisher {
 		base = store
 	}
 	
-	public subscript<T>(dynamicMember keyPath: KeyPath<Output, T>) -> StoreObservable<Store, T> {
-		StoreObservable<Store, T>(base: base, condition: {_, _ in true }, map: { $0[keyPath: keyPath] })
+	public subscript<T>(dynamicMember keyPath: KeyPath<Output, T>) -> StorePublisher<Store, T> {
+		StorePublisher<Store, T>(base: base, condition: {_, _ in true }, map: { $0[keyPath: keyPath] })
 	}
 	
-	public subscript<T: Equatable>(dynamicMember keyPath: KeyPath<Output, T>) -> StoreObservable<Store, T> {
-		StoreObservable<Store, T>(base: base, condition: !=, map: { $0[keyPath: keyPath] })
+	public subscript<T: Equatable>(dynamicMember keyPath: KeyPath<Output, T>) -> StorePublisher<Store, T> {
+		StorePublisher<Store, T>(base: base, condition: !=, map: { $0[keyPath: keyPath] })
 	}
 	
 	public func receive<S: Subscriber>(subscriber: S) where Never == S.Failure, Store.State == S.Input {
 		subscriber.receive(subscription: CombineStoreSubscription(subscriber: subscriber, store: base, condition: !=, map: { $0 }))
 	}
-	
 }
 
 @available(iOS 13.0, *)
 @dynamicMemberLookup
-public struct StoreObservable<Store: StoreType, Output>: Publisher {
+public struct StorePublisher<Store: StoreType, Output>: Publisher {
 	public typealias Failure = Never
 	public let base: Store
 	let condition: (Output, Output?) -> Bool
 	let map: (Store.State) -> Output
 	
-	public subscript<T>(dynamicMember keyPath: KeyPath<Output, T>) -> StoreObservable<Store, T> {
-		StoreObservable<Store, T>(base: base, condition: {_, _ in true}, map: {[map] in map($0)[keyPath: keyPath] })
+	public subscript<T>(dynamicMember keyPath: KeyPath<Output, T>) -> StorePublisher<Store, T> {
+		StorePublisher<Store, T>(base: base, condition: {_, _ in true}, map: {[map] in map($0)[keyPath: keyPath] })
 	}
 	
-	public subscript<T: Equatable>(dynamicMember keyPath: KeyPath<Output, T>) -> StoreObservable<Store, T> {
-		StoreObservable<Store, T>(base: base, condition: !=, map: {[map] in map($0)[keyPath: keyPath] })
+	public subscript<T: Equatable>(dynamicMember keyPath: KeyPath<Output, T>) -> StorePublisher<Store, T> {
+		StorePublisher<Store, T>(base: base, condition: !=, map: {[map] in map($0)[keyPath: keyPath] })
 	}
 	
 	public func receive<S: Subscriber>(subscriber: S) where Never == S.Failure, Output == S.Input {
 		subscriber.receive(subscription: CombineStoreSubscription(subscriber: subscriber, store: base, condition: condition, map: map))
 	}
-	
 }
 
 @available(iOS 13.0, *)
@@ -98,7 +96,6 @@ extension CombineStore where Store: DispatchingStoreType {
 		}
 		.any()
 	}
-	
 }
 
 @available(iOS 13.0, *)
@@ -130,13 +127,15 @@ fileprivate final class CombineStoreSubscription<Store: StoreType, S: Subscriber
 	}
 	
 	func request(_ demand: Subscribers.Demand) {
-		unsubscriber = store?.subscribe(CombineStoreSubscriber(observer: {[subscriber, map, condition] _new, _old in
+		unsubscriber?.unsubscribe()
+		unsubscriber = store?.subscribe(CombineStoreSubscriber(observer: {[self] _new, _old in
 			let new = map(_new)
 			let old = _old.map(map)
 			if condition(new, old) {
 				_ = subscriber.receive(new)
 			}
 		}))
+		store = nil
 	}
 	
 	func cancel() {
@@ -144,7 +143,6 @@ fileprivate final class CombineStoreSubscription<Store: StoreType, S: Subscriber
 		unsubscriber = nil
 		store = nil
 	}
-	
 }
 
 @available(iOS 13.0, *)

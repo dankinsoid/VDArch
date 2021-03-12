@@ -12,88 +12,92 @@ import CombineCocoa
 import CombineOperators
 
 @available(iOS 13.0, *)
+@available(iOS, deprecated, message: "use StateSignal")
+public typealias StateDriver<T> = StateSignal<T>
+
+@available(iOS 13.0, *)
 @dynamicMemberLookup
-public struct StateDriver<Output>: Publisher {
+public struct StateSignal<Output>: Publisher {
 	public typealias Failure = Never
-	private let driver: Driver<Output>
+	private let signal: Signal<Output>
 	
 	public init<P: Publisher>(_ publisher: P) where P.Output == Output {
-		self.driver = publisher.asDriver()
+		self.signal = publisher.asSignal()
 	}
 	
-	public init(_ driver: Driver<Output>) {
-		self.driver = driver
+	public init(_ signal: Signal<Output>) {
+		self.signal = signal
 	}
 	
 	public init(just: Output) {
-		self = StateDriver(Just(just))
+		self = StateSignal(Just(just))
 	}
 	
-	public subscript<T>(dynamicMember keyPath: KeyPath<Output, T>) -> StateDriver<T> {
+	public subscript<T>(dynamicMember keyPath: KeyPath<Output, T>) -> StateSignal<T> {
 		return map { $0[keyPath: keyPath] }
 	}
 	
-	public func map<T>(_ selector: @escaping (Output) -> T) -> StateDriver<T> {
-		return StateDriver<T>(driver.map(selector))
+	public func map<T>(_ selector: @escaping (Output) -> T) -> StateSignal<T> {
+		return StateSignal<T>(signal.map(selector))
 	}
 	
-	public func compactMap<T>(_ selector: @escaping (Output) -> T?) -> StateDriver<T> {
-		StateDriver<T>(driver.compactMap(selector))
+	public func compactMap<T>(_ selector: @escaping (Output) -> T?) -> StateSignal<T> {
+		StateSignal<T>(signal.compactMap(selector))
 	}
 	
 	public func receive<S>(subscriber: S) where S : Subscriber, Never == S.Failure, Output == S.Input {
-		driver.receive(subscriber: subscriber)
+		signal.receive(subscriber: subscriber)
 	}
 	
 }
 
 @available(iOS 13.0, *)
-extension StateDriver where Output: Equatable {
+extension StateSignal where Output: Equatable {
 	
-	public func skipEqual() -> StateDriver {
-		StateDriver(driver.removeDuplicates())
+	public func skipEqual() -> StateSignal {
+		StateSignal(signal.removeDuplicates())
 	}
 }
 
 @available(iOS 13.0, *)
-extension StateDriver where Output: OptionalProtocol {
+extension StateSignal where Output: OptionalProtocol {
 	
-	public subscript<T>(dynamicMember keyPath: KeyPath<Output.Wrapped, T>) -> StateDriver<T?> {
+	public subscript<T>(dynamicMember keyPath: KeyPath<Output.Wrapped, T>) -> StateSignal<T?> {
 		return map { $0.asOptional()?[keyPath: keyPath] }
 	}
 	
-	public subscript<T>(dynamicMember keyPath: KeyPath<Output.Wrapped, T?>) -> StateDriver<T?> {
+	public subscript<T>(dynamicMember keyPath: KeyPath<Output.Wrapped, T?>) -> StateSignal<T?> {
 		return map { $0.asOptional()?[keyPath: keyPath] }
 	}
 	
 }
 
 @available(iOS 13.0, *)
-extension StateDriver where Output == Void {
+extension StateSignal where Output == Void {
 	
-	public func map<T>(_ selector: @escaping () -> T) -> StateDriver<T> {
-		return StateDriver<T>(driver.map(selector))
+	public func map<T>(_ selector: @escaping () -> T) -> StateSignal<T> {
+		return StateSignal<T>(signal.map(selector))
 	}
 	
 }
 
 @available(iOS 13.0, *)
-extension StateDriver {
+extension StateSignal {
 	
-	public func skipEqual<E: Equatable>(by keyPath: KeyPath<Output, E>) -> StateDriver {
+	public func skipEqual<E: Equatable>(by keyPath: KeyPath<Output, E>) -> StateSignal {
 		skipEqual { $0[keyPath: keyPath] }
 	}
 	
-	public func skipEqual<E: Equatable>(_ comparor: @escaping (Output) -> E) -> StateDriver {
-		StateDriver(driver.removeDuplicates(by: { comparor($0) != comparor($1) }))
+	public func skipEqual<E: Equatable>(_ comparor: @escaping (Output) -> E) -> StateSignal {
+		StateSignal(signal.removeDuplicates(by: { comparor($0) != comparor($1) }))
 	}
 	
 }
 
 @available(iOS 13.0, *)
 extension Publisher {
-	public func asState() -> StateDriver<Output> {
-		StateDriver(self)
+	public func asState() -> StateSignal<Output> {
+		StateSignal(self)
 	}
 }
 
