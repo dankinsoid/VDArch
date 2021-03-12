@@ -143,10 +143,6 @@ fileprivate final class CombineStoreSubscription<Store: StoreType, S: Subscriber
 		unsubscriber = nil
 		store = nil
 	}
-	
-	deinit {
-		cancel()
-	}
 }
 
 @available(iOS 13.0, *)
