@@ -66,9 +66,9 @@ extension ViewProtocol {
 		let cancellable = CancellablePublisher()
 		let cancel: Single<Void, Never> = cancellable.merge(with: cancelBinding).share().asSingle()
 		let source = store.cb.prefix(untilOutputFrom: cancel).map(getter).skipEqual()
-		let signal = source.map { viewModel.map(state: $0) }.asSignal()
+		let signal = source.map { viewModel.map(state: $0) }.asState()
 		signal.subscribe(properties)
-		bind(state: StateSignal(signal))
+		bind(state: signal)
 		events.prefix(untilOutputFrom: cancel).flatMap {[weak store] event -> AnyPublisher<Action, Never> in
 			guard let state = store?.state else { return Empty(completeImmediately: false).any() }
 			return viewModel.map(event: event, state: getter(state)).skipFailure().any()
@@ -87,9 +87,9 @@ extension ViewProtocol {
 		} else {
 			source = modelStore.cb.prefix(untilOutputFrom: cancel).combineLatest(viewStore.cb).map(getter).skipEqual().any()
 		}
-		let signal = source.map { viewModel.map(state: $0) }.asSignal()
+		let signal = source.map { viewModel.map(state: $0) }.asState()
 		signal.subscribe(properties)
-		bind(state: StateSignal(signal))
+		bind(state: signal)
 		
 		let cbEvents = events.skipFailure().flatMap {[weak viewStore, weak modelStore] event -> AnyPublisher<Action, Never> in
 			guard let model = modelStore?.state, let view = viewStore?.state else { return Empty<Action, Never>(completeImmediately: false).any() }
