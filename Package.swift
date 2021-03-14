@@ -17,7 +17,7 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/dankinsoid/VDKit.git", from: "1.16.0"),
-				.package(url: "https://github.com/dankinsoid/VDFlow.git", from: "1.3.0"),
+				.package(url: "https://github.com/dankinsoid/VDFlow.git", from: "1.4.0"),
         .package(url: "https://github.com/dankinsoid/CombineOperators.git", from: "1.73.0")
     ],
     targets: [
