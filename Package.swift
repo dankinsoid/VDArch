@@ -25,7 +25,7 @@ let package = Package(
         // Targets can depend on other targets in this package, and on products in packages which this package depends on.
 			.target(
 				name: "VDArch",
-				dependencies: ["VDKit", "CombineOperators", .product(name: "CombineCocoa", package: "CombineOperators")]
+				dependencies: ["VDKit", "VDFlow", "CombineOperators", .product(name: "CombineCocoa", package: "CombineOperators")]
 			),
 			.testTarget(
 				name: "VDArchTests",
