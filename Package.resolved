@@ -6,8 +6,8 @@
         "repositoryURL": "https://github.com/dankinsoid/CombineOperators.git",
         "state": {
           "branch": null,
-          "revision": "75e8cd86c41858057517801d68a245d14082f55d",
-          "version": "1.40.0"
+          "revision": "d9a26a84957433c8f672fddf3c0a588326d09a7c",
+          "version": "1.73.0"
         }
       },
       {
@@ -24,8 +24,8 @@
         "repositoryURL": "https://github.com/dankinsoid/VDKit.git",
         "state": {
           "branch": null,
-          "revision": "2a11f2ea1812045fc07bc4bb9e1b2dbd093adb7c",
-          "version": "1.13.0"
+          "revision": "353b00f2e72664cf78ad42e7426e28bf9782c98b",
+          "version": "1.16.0"
         }
       }
     ]
