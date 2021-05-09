@@ -7,14 +7,18 @@
 
 import XCTest
 import Combine
+import SwiftUI
 @testable import CombineOperators
 @testable import VDArch
 
 @available(iOS 13.0, *)
 final class VDArchTests: XCTestCase {
+	@EnvironmentObject var store: Store<State>
+	
 	
 	func testExample() {
 		var state = State()
+		
 		state.isLoading = true
 		let json = try! JSONSerialization.jsonObject(with: JSONEncoder().encode(state), options: .allowFragments) as! [String: Any]
 		XCTAssert(json["isLoading"] as? Bool == false)
@@ -57,6 +61,8 @@ final class VDArchTests: XCTestCase {
 		func newState(state: State, oldState: State?) {
 			count += 1
 		}
+		
+		func willSetState(state: State, oldState: State?) {}
 		
 		func receive(subscription: Subscription) {
 			subscription.request(.unlimited)

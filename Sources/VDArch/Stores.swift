@@ -54,7 +54,6 @@ open class Stores<A: StateType, B: StateType>: Store<UnionState<A, B>> {
 		}
 	}
 	
-	
 	override func _subscribe<S: StoreSubscriber>(_ subscriber: S, sendCurrent: Bool) -> StoreUnsubscriber where State == S.StoreSubscriberStateType {
 		let def = state
 		let unsubscribe1 = store1._subscribe(
@@ -80,5 +79,4 @@ open class Stores<A: StateType, B: StateType>: Store<UnionState<A, B>> {
 		store1.unsubscribe(subscriber)
 		store2.unsubscribe(subscriber)
 	}
-	
 }

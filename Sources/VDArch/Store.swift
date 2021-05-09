@@ -19,6 +19,9 @@ import Foundation
 open class Store<State: StateType>: ConnectableStoreType {
 	
 	private(set) open var state: State {
+		willSet {
+			notify(newValue: newValue)
+		}
 		didSet {
 			notify(oldValue: oldValue)
 		}
@@ -139,6 +142,13 @@ open class Store<State: StateType>: ConnectableStoreType {
 		actionSubscriptions.forEach {
 			$0.newState(action, nil)
 		 }
+	}
+	
+	final func notify(newValue: State) {
+		guard state != newValue else { return }
+		subscriptions.forEach {
+			$0.willSetState(newValue, state)
+		}
 	}
 	
 	final func notify(oldValue: State) {
