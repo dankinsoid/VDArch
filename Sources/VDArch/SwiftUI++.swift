@@ -72,6 +72,10 @@ extension MVVMView {
 	public func viewModel<P: Equatable, E>(_ viewModel: MVVMState, _ keyPath: KeyPath<Properties, P>, events: @escaping (E) -> Events) -> some View {
 		self.viewModel(viewModel, state: { $0[keyPath: keyPath] }, events: events)
 	}
+	
+	public func viewModel(_ properties: Properties) -> some View {
+		environmentObject(ViewModelObject<Events, Properties>(Empty(), value: properties, send: {_ in}))
+	}
 }
 
 @available(iOS 13.0, *)
