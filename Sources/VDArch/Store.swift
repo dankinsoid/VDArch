@@ -16,6 +16,7 @@ argument.
 
 import Foundation
 
+@dynamicMemberLookup
 open class Store<State: StateType>: ConnectableStoreType {
 	
 	private(set) open var state: State {
@@ -180,6 +181,10 @@ open class Store<State: StateType>: ConnectableStoreType {
 		return StoreUnsubscriber {[weak self] in
 			self?.unsubscribe(id: id)
 		}
+	}
+	
+	open subscript<Substate: StateType>(dynamicMember keyPath: WritableKeyPath<State, Substate>) -> Store<Substate> {
+		substore(keyPath)
 	}
 	
 	open func substore<Substate: StateType>(lens: Lens<State, Substate>) -> Store<Substate> {
