@@ -27,6 +27,17 @@ public struct ViewModelEnvironment<Events, State>: DynamicProperty {
 	}
 }
 
+extension ViewModelEnvironment {
+	
+	public func binding<T>(get: KeyPath<State, T>, set: @escaping (T) -> Events) -> Binding<T> {
+		Binding(get: { wrappedValue[keyPath: get] }, set: { send(set($0)) })
+	}
+	
+	public func binding<T>(_ value: T, set: @escaping (T) -> Events) -> Binding<T> {
+		Binding(get: { value }, set: { send(set($0)) })
+	}
+}
+
 @available(iOS 13.0, *)
 public protocol MVVMView: View {
 	associatedtype Properties
@@ -55,6 +66,10 @@ extension MVVMView {
 				send: { viewModel.map(event: $0, state: get(store.state)).subscribe(store.cb.dispatcher) }
 			)
 		)
+	}
+	
+	public func viewModel<VM: ViewModelProtocol, State: StateType>(_ viewModel: VM, store: Store<State>, at keyPath: KeyPath<State, VM.ModelState>) -> some View where VM.ViewState == Properties, VM.ViewEvents == Events {
+		self.viewModel(viewModel, store: store, get: { $0[keyPath: keyPath] })
 	}
 	
 	public func viewModel<P, E>(_ viewModel: MVVMState, state: @escaping (Properties) -> P, events: @escaping (E) -> Events) -> some View {
@@ -99,6 +114,10 @@ extension MVVMView where Properties: Equatable {
 				send: { viewModel.map(event: $0, state: get(store.state)).subscribe(store.cb.dispatcher) }
 			)
 		)
+	}
+	
+	public func viewModel<VM: ViewModelProtocol, State: StateType>(_ viewModel: VM, store: Store<State>, at keyPath: KeyPath<State, VM.ModelState>) -> some View where VM.ViewState == Properties, VM.ViewEvents == Events {
+		self.viewModel(viewModel, store: store, get: { $0[keyPath: keyPath] })
 	}
 }
 
