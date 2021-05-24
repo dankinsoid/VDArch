@@ -14,10 +14,10 @@ import Combine
 public struct ViewModelEnvironment<Events, State>: DynamicProperty {
 	@EnvironmentObject var store: ViewModelObject<Events, State>
 	
-	public var wrappedValue: State { store.state }
+	public var wrappedValue: State { store.state() }
 	
 	public var projectedValue: AnyPublisher<State, Never> {
-		store.objectWillChange.map { store.state }.eraseToAnyPublisher()
+		store.objectWillChange.map { store.state() }.eraseToAnyPublisher()
 	}
 	
 	public init() {}
@@ -49,23 +49,23 @@ public protocol MVVMView: View {
 extension MVVMView {
 	
 	public func viewModel<VM: ViewModelProtocol, State: StateType>(_ viewModel: VM, store: Store<State>) -> some View where VM.ViewState == Properties, VM.ViewEvents == Events, VM.ModelState == State {
-		environmentObject(
-			ViewModelObject(
-				store.cb.dropFirst().map(viewModel.map),
-				value: viewModel.map(state: store.state),
-				send: { viewModel.map(event: $0, state: store.state).subscribe(store.cb.dispatcher) }
-			)
+		let object = ViewModelObject(
+			store.cb.dropFirst().map(viewModel.map),
+			value: { viewModel.map(state: store.state) },
+			send: { viewModel.map(event: $0, state: store.state).subscribe(store.cb.dispatcher) }
 		)
+		subscribe(store: store, viewModel: viewModel, until: object.deallocated, map: { $0 })
+		return environmentObject(object)
 	}
 	
 	public func viewModel<VM: ViewModelProtocol, State: StateType>(_ viewModel: VM, store: Store<State>, get: @escaping (State) -> VM.ModelState) -> some View where VM.ViewState == Properties, VM.ViewEvents == Events {
-		environmentObject(
-			ViewModelObject(
-				store.cb.dropFirst().map { viewModel.map(state: get($0)) }.asDriver(),
-				value: viewModel.map(state: get(store.state)),
-				send: { viewModel.map(event: $0, state: get(store.state)).subscribe(store.cb.dispatcher) }
-			)
+		let object = ViewModelObject(
+			store.cb.dropFirst().map { viewModel.map(state: get($0)) }.asDriver(),
+			value: { viewModel.map(state: get(store.state)) },
+			send: { viewModel.map(event: $0, state: get(store.state)).subscribe(store.cb.dispatcher) }
 		)
+		subscribe(store: store, viewModel: viewModel, until: object.deallocated, map: get)
+		return environmentObject(object)
 	}
 	
 	public func viewModel<VM: ViewModelProtocol, State: StateType>(_ viewModel: VM, store: Store<State>, at keyPath: KeyPath<State, VM.ModelState>) -> some View where VM.ViewState == Properties, VM.ViewEvents == Events {
@@ -89,7 +89,21 @@ extension MVVMView {
 	}
 	
 	public func viewModel(_ properties: Properties) -> some View {
-		environmentObject(ViewModelObject<Events, Properties>(Empty(), value: properties, send: {_ in}))
+		environmentObject(ViewModelObject<Events, Properties>(Empty(), value: { properties }, send: {_ in}))
+	}
+	
+	private func subscribe<VM: ViewModelProtocol, State: StateType, P: Publisher>(store: Store<State>, viewModel: VM, until: P, map: @escaping (State) -> VM.ModelState) {
+		store.cb.actions
+			.prefix(untilOutputFrom: until)
+			.flatMap(viewModel.onAction)
+			.subscribe(store.cb.dispatcher)
+		
+		store.cb.onChange
+			.prefix(untilOutputFrom: until)
+			.map { ($0.0.map(map), map($0.1)) }
+			.filter { $0.0 != $0.1 && $0.0 != nil }
+			.flatMap { viewModel.onChange(oldState: $0.0!, newState: $0.1) }
+			.subscribe(store.cb.dispatcher)
 	}
 }
 
@@ -97,23 +111,23 @@ extension MVVMView {
 extension MVVMView where Properties: Equatable {
 	
 	public func viewModel<VM: ViewModelProtocol, State: StateType>(_ viewModel: VM, store: Store<State>) -> some View where VM.ViewState == Properties, VM.ViewEvents == Events, VM.ModelState == State {
-		environmentObject(
-			ViewModelObject(
-				store.cb.dropFirst().map(viewModel.map).removeDuplicates().asDriver(),
-				value: viewModel.map(state: store.state),
-				send: { viewModel.map(event: $0, state: store.state).subscribe(store.cb.dispatcher) }
-			)
+		let object = ViewModelObject(
+			store.cb.dropFirst().map(viewModel.map).removeDuplicates().asDriver(),
+			value: { viewModel.map(state: store.state) },
+			send: { viewModel.map(event: $0, state: store.state).subscribe(store.cb.dispatcher) }
 		)
+		subscribe(store: store, viewModel: viewModel, until: object.deallocated, map: { $0 })
+		return environmentObject(object)
 	}
 	
 	public func viewModel<VM: ViewModelProtocol, State: StateType>(_ viewModel: VM, store: Store<State>, get: @escaping (State) -> VM.ModelState) -> some View where VM.ViewState == Properties, VM.ViewEvents == Events {
-		environmentObject(
-			ViewModelObject(
-				store.cb.dropFirst().map { viewModel.map(state: get($0)) }.removeDuplicates().asDriver(),
-				value: viewModel.map(state: get(store.state)),
-				send: { viewModel.map(event: $0, state: get(store.state)).subscribe(store.cb.dispatcher) }
-			)
+		let object = ViewModelObject(
+			store.cb.dropFirst().map { viewModel.map(state: get($0)) }.removeDuplicates().asDriver(),
+			value: { viewModel.map(state: get(store.state)) },
+			send: { viewModel.map(event: $0, state: get(store.state)).subscribe(store.cb.dispatcher) }
 		)
+		subscribe(store: store, viewModel: viewModel, until: object.deallocated, map: get)
+		return environmentObject(object)
 	}
 	
 	public func viewModel<VM: ViewModelProtocol, State: StateType>(_ viewModel: VM, store: Store<State>, at keyPath: KeyPath<State, VM.ModelState>) -> some View where VM.ViewState == Properties, VM.ViewEvents == Events {
@@ -123,12 +137,12 @@ extension MVVMView where Properties: Equatable {
 
 @available(iOS 13.0, *)
 final class ViewModelObject<Events, State>: ObservableObject {
-	@Published var state: State
 	var send: (Events) -> Void
+	let state: () -> State
 	let deallocated = PassthroughSubject<Void, Never>()
 	private let publisher: AnyPublisher<State, Never>
 	
-	init<P: Publisher>(_ publisher: P, value: State, send: @escaping (Events) -> Void) where P.Output == State, P.Failure == Never {
+	init<P: Publisher>(_ publisher: P, value: @escaping () -> State, send: @escaping (Events) -> Void) where P.Output == State, P.Failure == Never {
 		self.state = value
 		self.send = send
 		self.publisher = publisher.eraseToAnyPublisher()
@@ -139,16 +153,16 @@ final class ViewModelObject<Events, State>: ObservableObject {
 		publisher
 			.prefix(untilOutputFrom: deallocated)
 			.subscribe {[weak self] state in
-				self?.state = state
+				self?.objectWillChange.send()
 			}
 	}
 	
 	func map<E, S>(properties: @escaping (State) -> S, events: @escaping (E) -> Events) -> ViewModelObject<E, S> {
-		ViewModelObject<E, S>(publisher.map(properties), value: properties(state), send: { self.send(events($0)) })
+		ViewModelObject<E, S>(publisher.map(properties), value: {[state] in properties(state()) }, send: { self.send(events($0)) })
 	}
 	
 	func map<E, S: Equatable>(properties: @escaping (State) -> S, events: @escaping (E) -> Events) -> ViewModelObject<E, S> {
-		ViewModelObject<E, S>(publisher.map(properties).removeDuplicates(), value: properties(state), send: { self.send(events($0)) })
+		ViewModelObject<E, S>(publisher.map(properties).removeDuplicates(), value: {[state] in properties(state()) }, send: { self.send(events($0)) })
 	}
 	
 	deinit {

@@ -46,6 +46,19 @@ public protocol ViewModelProtocol {
 	
 	func map(state: ModelState) -> ViewState
 	func map(event: ViewEvents, state: ModelState) -> ActionPublisher
+	
+	func onChange(oldState: ModelState, newState: ModelState) -> ActionPublisher
+	func onAction(_ action: Action) -> ActionPublisher
+}
+
+extension ViewModelProtocol {
+	public func onChange(oldState: ModelState, newState: ModelState) -> ActionPublisher {
+		Empty(completeImmediately: false).eraseToAnyPublisher()
+	}
+	
+	public func onAction(_ action: Action) -> ActionPublisher {
+		Empty(completeImmediately: false).eraseToAnyPublisher()
+	}
 }
 
 @available(iOS 13.0, *)
@@ -74,34 +87,19 @@ extension ViewProtocol {
 			return viewModel.map(event: event, state: getter(state)).skipFailure().any()
 		}
 		.subscribe(store.cb.dispatcher)
-		return cancellable
-	}
-	
-	@discardableResult
-	public func bind<VM: ViewModelProtocol, MS: StateType, VS: StateType>(_ viewModel: VM, modelStore: Store<MS>, viewStore: Store<VS>, getter: @escaping (MS, VS) -> VM.ModelState) -> Cancellable where VM.ViewState == Properties, VM.ViewEvents == Events {
-		let cancellable = CancellablePublisher()
-		let cancel: Single<Void, Never> = cancellable.merge(with: cancelBinding).share().asSingle()
-		let source: AnyPublisher<VM.ModelState, Never>
-		if viewStore === modelStore, VM.self == MS.self {
-			source = modelStore.cb.prefix(untilOutputFrom: cancel).map { getter($0, $0 as! VS) }.skipEqual().any()
-		} else {
-			source = modelStore.cb.prefix(untilOutputFrom: cancel).combineLatest(viewStore.cb).map(getter).skipEqual().any()
-		}
-		let signal = source.map { viewModel.map(state: $0) }.asState()
-		signal.subscribe(properties)
-		bind(state: signal)
 		
-		let cbEvents = events.skipFailure().flatMap {[weak viewStore, weak modelStore] event -> AnyPublisher<Action, Never> in
-			guard let model = modelStore?.state, let view = viewStore?.state else { return Empty<Action, Never>(completeImmediately: false).any() }
-			return viewModel.map(event: event, state: getter(model, view)).any()
-		}
-		.prefix(untilOutputFrom: cancel)
-		.share()
+		store.cb.actions
+			.prefix(untilOutputFrom: cancel)
+			.flatMap(viewModel.onAction)
+			.subscribe(store.cb.dispatcher)
 		
-		cbEvents.subscribe(viewStore.cb.dispatcher)
-		if modelStore !== viewStore {
-			cbEvents.subscribe(modelStore.cb.dispatcher)
-		}
+		store.cb.onChange
+			.prefix(untilOutputFrom: cancel)
+			.map { ($0.0.map(getter), getter($0.1)) }
+			.filter { $0.0 != $0.1 && $0.0 != nil }
+			.flatMap { viewModel.onChange(oldState: $0.0!, newState: $0.1) }
+			.subscribe(store.cb.dispatcher)
+		
 		return cancellable
 	}
 	

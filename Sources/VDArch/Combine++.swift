@@ -50,6 +50,10 @@ public struct CombineStore<Store: StoreType>: Publisher {
 		} receiveCompletion: { _ in }
 	}
 	
+	public var onChange: StoreOnChangePublisher<Store, Store.State> {
+		StoreOnChangePublisher(base: base, condition: !=, map: { $0 }, willSet: false)
+	}
+	
 	public init(_ store: Store) {
 		base = store
 		self.willSet = false
@@ -69,7 +73,14 @@ public struct CombineStore<Store: StoreType>: Publisher {
 	}
 	
 	public func receive<S: Subscriber>(subscriber: S) where Never == S.Failure, Store.State == S.Input {
-		subscriber.receive(subscription: CombineStoreSubscription(subscriber: subscriber, store: base, willSet: willSet, condition: !=, map: { $0 }))
+		subscriber.receive(
+			subscription: CombineStoreSubscription(
+				subscriber: subscriber.mapSubscriber { $0.1 },
+				store: base,
+				willSet: willSet,
+				condition: !=, map: { $0 }
+			)
+		)
 	}
 }
 
@@ -91,7 +102,65 @@ public struct StorePublisher<Store: StoreType, Output>: Publisher {
 	}
 	
 	public func receive<S: Subscriber>(subscriber: S) where Never == S.Failure, Output == S.Input {
-		subscriber.receive(subscription: CombineStoreSubscription(subscriber: subscriber, store: base, willSet: willSet, condition: condition, map: map))
+		subscriber
+			.receive(
+			subscription: CombineStoreSubscription(
+				subscriber: subscriber.mapSubscriber { $0.1 },
+				store: base,
+				willSet: willSet,
+				condition: condition,
+				map: map
+			)
+		)
+	}
+}
+
+extension StorePublisher where Output: Equatable {
+	
+	public var onChange: StoreOnChangePublisher<Store, Output> {
+		StoreOnChangePublisher(base: base, condition: !=, map: map, willSet: willSet)
+	}
+}
+
+@available(iOS 13.0, *)
+@dynamicMemberLookup
+public struct StoreOnChangePublisher<Store: StoreType, Value>: Publisher {
+	public typealias Failure = Never
+	public typealias Output = (Value?, Value)
+	public let base: Store
+	let condition: (Value, Value?) -> Bool
+	let map: (Store.State) -> Value
+	let willSet: Bool
+	
+	public subscript<T>(dynamicMember keyPath: KeyPath<Value, T>) -> StoreOnChangePublisher<Store, T> {
+		StoreOnChangePublisher<Store, T>(
+			base: base,
+			condition: {_, _ in true},
+			map: {[map] in map($0)[keyPath: keyPath] },
+			willSet: willSet
+		)
+	}
+	
+	public subscript<T: Equatable>(dynamicMember keyPath: KeyPath<Value, T>) -> StoreOnChangePublisher<Store, T> {
+		StoreOnChangePublisher<Store, T>(
+			base: base,
+			condition: !=,
+			map: {[map] in map($0)[keyPath: keyPath] },
+			willSet: willSet
+		)
+	}
+	
+	public func receive<S: Subscriber>(subscriber: S) where Never == S.Failure, Output == S.Input {
+		subscriber
+			.receive(
+				subscription: CombineStoreSubscription(
+					subscriber: subscriber,
+					store: base,
+					willSet: willSet,
+					condition: condition,
+					map: map
+				)
+			)
 	}
 }
 
@@ -131,15 +200,15 @@ fileprivate final class CombineStoreSubscriber<Element>: StoreSubscriber {
 }
 
 @available(iOS 13.0, *)
-fileprivate final class CombineStoreSubscription<Store: StoreType, S: Subscriber>: Subscription {
+fileprivate final class CombineStoreSubscription<Store: StoreType, Input, S: Subscriber>: Subscription where S.Input == (Input?, Input) {
 	let subscriber: S
 	var store: Store?
 	var unsubscriber: StoreUnsubscriber?
-	let condition: (S.Input, S.Input?) -> Bool
-	let map: (Store.State) -> S.Input
+	let condition: (Input, Input?) -> Bool
+	let map: (Store.State) -> Input
 	let willSet: Bool
 	
-	init(subscriber: S, store: Store, willSet: Bool, condition: @escaping (S.Input, S.Input?) -> Bool, map: @escaping (Store.State) -> S.Input) {
+	init(subscriber: S, store: Store, willSet: Bool, condition: @escaping (Input, Input?) -> Bool, map: @escaping (Store.State) -> Input) {
 		self.subscriber = subscriber
 		self.store = store
 		self.condition = condition
@@ -153,7 +222,7 @@ fileprivate final class CombineStoreSubscription<Store: StoreType, S: Subscriber
 			let new = map(_new)
 			let old = _old.map(map)
 			if condition(new, old) {
-				_ = subscriber.receive(new)
+				_ = subscriber.receive((old, new))
 			}
 		})
 		store = nil
