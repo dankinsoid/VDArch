@@ -165,7 +165,7 @@ public func =>><V: ViewProtocol, O: Publisher>(_ lhs: O, _ rhs: Reactive<V>?) wh
 }
 
 @available(iOS 13.0, *)
-public func =>><Element, O: Subscriber>(_ lhs: StateDriver<Element>, _ rhs: O?) where O.Input == Element?, Element: Equatable {
+public func =>><Element, O: Subscriber>(_ lhs: StateSignal<Element>, _ rhs: O?) where O.Input == Element?, Element: Equatable {
 	guard let rhs = rhs else { return }
 	lhs.skipEqual() => rhs
 }
