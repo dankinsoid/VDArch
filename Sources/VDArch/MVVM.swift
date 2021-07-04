@@ -27,11 +27,6 @@ public protocol ViewProtocol {
 	func bind(state: StateSignal<Properties>)
 }
 
-@available(iOS 13.0, *)
-extension ViewProtocol {
-	public func bind(state: StateSignal<Properties>) {}
-}
-
 extension ViewProtocol where Self: AnyObject {
 	public var cancelBinding: Single<Void, Never> {
 		Reactive(self).deallocated.asSingle()
