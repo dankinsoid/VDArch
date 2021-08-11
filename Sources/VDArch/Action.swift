@@ -5,6 +5,7 @@
 //  Created by Daniil on 21.10.2020.
 //  Copyright © 2020 Daniil. All rights reserved.
 //
+import Foundation
 
 /// All actions that want to be able to be dispatched to a store need to conform to this protocol
 /// Currently it is just a marker protocol with no requirements.

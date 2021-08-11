@@ -54,22 +54,6 @@ extension ReducerModule {
 	
 }
 
-@available(iOS 13.0, *)
-public protocol EventSource {
-	var events: AnyPublisher<Action, Never> { get }
-}
-
-extension ReducerModule where Self: AnyObject {
-	
-	public func weakReducer(default defaultState: State) -> Reducer<State> {
-		return {[weak self] in
-			guard let event = $0 as? Event else { return defaultState }
-			return self?.reduce(action: event, state: $1) ?? defaultState
-		}
-	}
-	
-}
-
 extension ReducerConvertible {
 	
 	public func asGlobal<State>(with lens: Lens<State, ReducerStateType>) -> Reducer<State> {

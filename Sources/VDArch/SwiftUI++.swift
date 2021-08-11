@@ -48,7 +48,7 @@ public protocol MVVMView: View {
 @available(iOS 13.0, *)
 extension MVVMView {
 	
-	public func viewModel<VM: ViewModelProtocol, State: StateType>(_ viewModel: VM, store: Store<State>) -> some View where VM.ViewState == Properties, VM.ViewEvents == Events, VM.ModelState == State {
+	public func viewModel<VM: ViewModelProtocol, State: StateType>(_ viewModel: VM, store: Store<State>) -> some View where VM.ViewState == Properties, VM.ViewEvents == Events, VM.State == State {
 		let object = ViewModelObject(
 			store.cb.dropFirst().map(viewModel.map),
 			value: { viewModel.map(state: store.state) },
@@ -58,7 +58,7 @@ extension MVVMView {
 		return environmentObject(object)
 	}
 	
-	public func viewModel<VM: ViewModelProtocol, State: StateType>(_ viewModel: VM, store: Store<State>, get: @escaping (State) -> VM.ModelState) -> some View where VM.ViewState == Properties, VM.ViewEvents == Events {
+	public func viewModel<VM: ViewModelProtocol, State: StateType>(_ viewModel: VM, store: Store<State>, get: @escaping (State) -> VM.State) -> some View where VM.ViewState == Properties, VM.ViewEvents == Events {
 		let object = ViewModelObject(
 			store.cb.dropFirst().map { viewModel.map(state: get($0)) }.asDriver(),
 			value: { viewModel.map(state: get(store.state)) },
@@ -68,7 +68,7 @@ extension MVVMView {
 		return environmentObject(object)
 	}
 	
-	public func viewModel<VM: ViewModelProtocol, State: StateType>(_ viewModel: VM, store: Store<State>, at keyPath: KeyPath<State, VM.ModelState>) -> some View where VM.ViewState == Properties, VM.ViewEvents == Events {
+	public func viewModel<VM: ViewModelProtocol, State: StateType>(_ viewModel: VM, store: Store<State>, at keyPath: KeyPath<State, VM.State>) -> some View where VM.ViewState == Properties, VM.ViewEvents == Events {
 		self.viewModel(viewModel, store: store, get: { $0[keyPath: keyPath] })
 	}
 	
@@ -92,7 +92,7 @@ extension MVVMView {
 		environmentObject(ViewModelObject<Events, Properties>(Empty(), value: { properties }, send: {_ in}))
 	}
 	
-	private func subscribe<VM: ViewModelProtocol, State: StateType, P: Publisher>(store: Store<State>, viewModel: VM, until: P, map: @escaping (State) -> VM.ModelState) {
+	private func subscribe<VM: ViewModelProtocol, State: StateType, P: Publisher>(store: Store<State>, viewModel: VM, until: P, map: @escaping (State) -> VM.State) {
 		store.cb.actions
 			.prefix(untilOutputFrom: until)
 			.flatMap(viewModel.onAction)
@@ -110,7 +110,7 @@ extension MVVMView {
 @available(iOS 13.0, *)
 extension MVVMView where Properties: Equatable {
 	
-	public func viewModel<VM: ViewModelProtocol, State: StateType>(_ viewModel: VM, store: Store<State>) -> some View where VM.ViewState == Properties, VM.ViewEvents == Events, VM.ModelState == State {
+	public func viewModel<VM: ViewModelProtocol, State: StateType>(_ viewModel: VM, store: Store<State>) -> some View where VM.ViewState == Properties, VM.ViewEvents == Events, VM.State == State {
 		let object = ViewModelObject(
 			store.cb.dropFirst().map(viewModel.map).removeDuplicates().asDriver(),
 			value: { viewModel.map(state: store.state) },
@@ -120,7 +120,7 @@ extension MVVMView where Properties: Equatable {
 		return environmentObject(object)
 	}
 	
-	public func viewModel<VM: ViewModelProtocol, State: StateType>(_ viewModel: VM, store: Store<State>, get: @escaping (State) -> VM.ModelState) -> some View where VM.ViewState == Properties, VM.ViewEvents == Events {
+	public func viewModel<VM: ViewModelProtocol, State: StateType>(_ viewModel: VM, store: Store<State>, get: @escaping (State) -> VM.State) -> some View where VM.ViewState == Properties, VM.ViewEvents == Events {
 		let object = ViewModelObject(
 			store.cb.dropFirst().map { viewModel.map(state: get($0)) }.removeDuplicates().asDriver(),
 			value: { viewModel.map(state: get(store.state)) },
@@ -130,7 +130,7 @@ extension MVVMView where Properties: Equatable {
 		return environmentObject(object)
 	}
 	
-	public func viewModel<VM: ViewModelProtocol, State: StateType>(_ viewModel: VM, store: Store<State>, at keyPath: KeyPath<State, VM.ModelState>) -> some View where VM.ViewState == Properties, VM.ViewEvents == Events {
+	public func viewModel<VM: ViewModelProtocol, State: StateType>(_ viewModel: VM, store: Store<State>, at keyPath: KeyPath<State, VM.State>) -> some View where VM.ViewState == Properties, VM.ViewEvents == Events {
 		self.viewModel(viewModel, store: store, get: { $0[keyPath: keyPath] })
 	}
 }
