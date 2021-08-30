@@ -29,6 +29,7 @@ final class VDArchTests: XCTestCase {
 		var count = 0
 		let store = Store(reducer: { _, state in
             state.double = .random(in: 0...10)
+            return .empty()
 		}, state: State())
 		var cancellable = CancellablePublisher()
 		store.cb.prefix(untilOutputFrom: cancellable).subscribe { _ in

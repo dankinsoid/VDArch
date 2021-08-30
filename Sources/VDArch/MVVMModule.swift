@@ -44,7 +44,7 @@ public struct MVVMModule<ViewModel: ViewModelProtocol, View: ViewProtocol>: Effe
 }
 
 extension MVVMModule: ReducerBaseModule where ViewModel: ReducerBaseModule {
-    public func reduceAny(action: Action, state: inout ViewModel.State) {
+    public func reduceAny(action: Action, state: inout ViewModel.State) -> AnyPublisher<Action, Never> {
         viewModel.reduceAny(action: action, state: &state)
     }
 }
@@ -52,7 +52,7 @@ extension MVVMModule: ReducerBaseModule where ViewModel: ReducerBaseModule {
 extension MVVMModule: ReducerModule where ViewModel: ReducerModule {
     public typealias Event = ViewModel.Event
     
-    public func reduce(action: ViewModel.Event, state: inout ViewModel.State) -> Void {
+    public func reduce(action: ViewModel.Event, state: inout ViewModel.State) -> AnyPublisher<Action, Never> {
         viewModel.reduce(action: action, state: &state)
     }
 }

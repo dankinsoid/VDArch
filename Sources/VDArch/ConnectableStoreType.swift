@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import Combine
 
 public protocol ConnectableStoreType: StoreType {
 	@discardableResult
@@ -84,7 +85,7 @@ private final class ReducerWrapped<State: Equatable>: ReducerBaseModule {
 		self.reducer = reducer
 	}
 	
-    func reduceAny(action: Action, state: inout State) {
+    func reduceAny(action: Action, state: inout State) -> AnyPublisher<Action, Never> {
         reducer(action, &state)
     }
 }

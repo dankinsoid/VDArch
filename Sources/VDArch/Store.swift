@@ -15,6 +15,7 @@ argument.
 */
 
 import Foundation
+import Combine
 
 @dynamicMemberLookup
 open class Store<State: Equatable>: ConnectableStoreType {
@@ -191,6 +192,7 @@ open class Store<State: Equatable>: ConnectableStoreType {
 	}
 	
 	private func reduce(action: Action) {
+        var actions: [AnyPublisher<Action, Never>] = []
 		ids.forEach {
 			lock.lock()
 			guard let reducer = reducers[$0] else {
@@ -198,8 +200,11 @@ open class Store<State: Equatable>: ConnectableStoreType {
 				return
 			}
 			lock.unlock()
-			reducer(action, &state)
+            actions.append(reducer(action, &state))
 		}
+        Publishers.MergeMany(actions).subscribe {[weak self] in
+            self?.dispatch($0)
+        }
 	}
 	
 	private func unsubscribe(id: UUID) {

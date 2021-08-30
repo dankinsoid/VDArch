@@ -44,13 +44,15 @@ open class Stores<A: Equatable, B: Equatable>: Store<UnionState<A, B>> {
 		let def = state
 		let first = store1.connect {[weak self] action, state in
             var new = self.map { UnionState(state, $0.store2.state)} ?? def
-            reducer(action, &new)
+            let result = reducer(action, &new)
             state = new.a
+            return result
 		}
 		let second = store2.connect {[weak self] action, state in
             var new = self.map { UnionState($0.store1.state, state)} ?? def
-            reducer(action, &new)
+            let result = reducer(action, &new)
             state = new.b
+            return result
 		}
 		return StoreUnsubscriber {
 			first.unsubscribe()
