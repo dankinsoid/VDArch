@@ -17,7 +17,7 @@ argument.
 import Foundation
 
 @dynamicMemberLookup
-open class Store<State: StateType>: ConnectableStoreType {
+open class Store<State: Equatable>: ConnectableStoreType {
 	
 	private(set) open var state: State {
 		willSet {
@@ -132,10 +132,9 @@ open class Store<State: StateType>: ConnectableStoreType {
 	
 	func defaultDispatch(action: Action, completion: ((State) -> Void)?) {
 		queue.async {[self] in
-			let newState = reduce(action: action, state: state)
-			set(state: newState)
+            reduce(action: action)
 			notify(action: action)
-			completion?(newState)
+            completion?(self.state)
 		}
 	}
 	
@@ -159,10 +158,6 @@ open class Store<State: StateType>: ConnectableStoreType {
 		}
 	}
 	
-	func set(state: State) {
-		self.state = state
-	}
-	
 	open func dispatch(_ action: Action) {
 		self.dispatch(action, completion: {_ in})
 	}
@@ -183,20 +178,19 @@ open class Store<State: StateType>: ConnectableStoreType {
 		}
 	}
 	
-	open subscript<Substate: StateType>(dynamicMember keyPath: WritableKeyPath<State, Substate>) -> Store<Substate> {
+	open subscript<Substate: Equatable>(dynamicMember keyPath: WritableKeyPath<State, Substate>) -> Store<Substate> {
 		substore(keyPath)
 	}
 	
-	open func substore<Substate: StateType>(lens: Lens<State, Substate>) -> Store<Substate> {
+	open func substore<Substate: Equatable>(lens: Lens<State, Substate>) -> Store<Substate> {
 		Substore(store: self, lens: lens)
 	}
 	
-	open func substore<Substate: StateType>(_ keyPath: WritableKeyPath<State, Substate>) -> Store<Substate> {
+	open func substore<Substate: Equatable>(_ keyPath: WritableKeyPath<State, Substate>) -> Store<Substate> {
 		substore(lens: Lens(at: keyPath))
 	}
 	
-	private func reduce(action: Action, state: State?) -> State {
-		var result: State = state ?? self.state
+	private func reduce(action: Action) {
 		ids.forEach {
 			lock.lock()
 			guard let reducer = reducers[$0] else {
@@ -204,9 +198,8 @@ open class Store<State: StateType>: ConnectableStoreType {
 				return
 			}
 			lock.unlock()
-			result = reducer(action, result)
+			reducer(action, &state)
 		}
-		return result
 	}
 	
 	private func unsubscribe(id: UUID) {

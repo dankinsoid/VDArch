@@ -9,57 +9,49 @@
 import Foundation
 import Combine
 
-public protocol ReducerConvertible {
-	associatedtype ReducerStateType
-	func asReducer() -> Reducer<ReducerStateType>
-}
-
-public protocol ReducerBaseModule: ReducerConvertible {
+public protocol ReducerBaseModule {
 	associatedtype State: Equatable
-	func reduceAny(action: Action, state: State) -> State
+	func reduceAny(action: Action, state: inout State) -> Void
 }
 
 extension ReducerBaseModule {
 	
-	public func reduce(actions: Action..., state: State) -> State {
+	public func reduce(actions: Action..., state: inout State) -> Void {
 		var state = state
 		for action in actions {
-			state = reduceAny(action: action, state: state)
+			reduceAny(action: action, state: &state)
 		}
-		return state
 	}
-	
-	public func asReducer() -> Reducer<State> {
-		reduceAny
-	}
-	
 }
 
-public protocol ReducerModule: ReducerConvertible {
+public protocol ReducerModule: ReducerBaseModule {
 	associatedtype Event: Action
-	associatedtype State: Equatable
-	func reduce(action: Event, state: State) -> State
+	func reduce(action: Event, state: inout State) -> Void
+}
+
+extension ReducerModule where State == Never {
+    public func reduce(action: Event, state: inout State) -> Void {}
 }
 
 extension ReducerModule {
 	
-	public func reduceAny(action: Action, state: State) -> State {
-		guard let event = action as? Event else { return state }
-		return reduce(action: event, state: state)
+	public func reduceAny(action: Action, state: inout State) -> Void {
+		guard let event = action as? Event else { return }
+		reduce(action: event, state: &state)
 	}
 	
 	public func asReducer() -> Reducer<State> {
 		reduceAny
 	}
-	
 }
 
-extension ReducerConvertible {
+extension ReducerBaseModule {
 	
-	public func asGlobal<State>(with lens: Lens<State, ReducerStateType>) -> Reducer<State> {
+    public func asGlobal<S: Equatable>(with lens: Lens<S, State>) -> Reducer<S> {
 		return { action, state in
-			return lens.set(state, self.asReducer()(action, lens.get(state)))
+            var newState = lens.get(state)
+            self.reduceAny(action: action, state: &newState)
+            state = lens.set(state, newState)
 		}
 	}
-	
 }

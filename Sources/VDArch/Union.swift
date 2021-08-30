@@ -17,7 +17,6 @@ public struct UnionState<A, B> {
 	}
 }
 
-extension UnionState: StateType where A: StateType, B: StateType {}
 extension UnionState: Equatable where A: Equatable, B: Equatable {}
 extension UnionState: Hashable where A: Hashable, B: Hashable {}
 extension UnionState: Decodable where A: Decodable, B: Decodable {}

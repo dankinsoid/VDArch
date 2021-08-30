@@ -71,6 +71,14 @@ public struct CombineStore<Store: StoreType>: Publisher {
 	public subscript<T: Equatable>(dynamicMember keyPath: KeyPath<Output, T>) -> StorePublisher<Store, T> {
 		StorePublisher<Store, T>(base: base, condition: !=, map: { $0[keyPath: keyPath] }, willSet: willSet)
 	}
+    
+    public func map<T: Equatable>(_ map: @escaping (Store.State) -> T) -> AnyPublisher<T, Never> {
+        onChange
+            .map { ($0.0.map(map), map($0.1)) }
+            .filter { $0.0 != $0.1 && $0.0 != nil }
+            .map { $0.1 }
+            .any()
+    }
 	
 	public func receive<S: Subscriber>(subscriber: S) where Never == S.Failure, Store.State == S.Input {
 		subscriber.receive(

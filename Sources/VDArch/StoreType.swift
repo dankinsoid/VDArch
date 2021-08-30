@@ -15,7 +15,7 @@ Upon every state update a store informs all of its subscribers.
 
 public protocol StoreType: DispatchingStoreType {
 	
-	associatedtype State: StateType
+	associatedtype State: Equatable
 	
 	/// The current state stored in the store.
 	var state: State { get }

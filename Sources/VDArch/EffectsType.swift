@@ -9,12 +9,12 @@ import Foundation
 import Combine
 
 public protocol EffectsType where ActionPublisher.Output == Action, ActionPublisher.Failure == Never {
-    associatedtype State
+    associatedtype State: Equatable
     associatedtype ActionPublisher: Publisher = AnyPublisher<Action, Never>
     func effects<P: Publisher>(states: P) -> ActionPublisher where P.Output == State, P.Failure == Never
 }
 
-public struct EffectsMap<Base: EffectsType, State>: EffectsType {
+public struct EffectsMap<Base: EffectsType, State: Equatable>: EffectsType {
     var map: (State) -> Base.State
     var base: Base
     

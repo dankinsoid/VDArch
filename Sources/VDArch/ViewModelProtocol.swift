@@ -10,7 +10,6 @@ import Combine
 
 @available(iOS 13.0, *)
 public protocol ViewModelProtocol: EffectsType {
-    override associatedtype State: Equatable
     associatedtype ViewState
     associatedtype ViewEvents
     
@@ -44,21 +43,23 @@ extension ViewModelProtocol {
 
 @available(iOS 13.0, *)
 public struct AnyViewModel<State: Equatable, ViewState, ViewEvents>: ViewModelProtocol {
-    
     private let mapState: (State) -> ViewState
     private let mapEvents: (ViewEvents, State) -> AnyPublisher<Action, Never>
     private let mapEffects: (AnyPublisher<State, Never>) -> AnyPublisher<Action, Never>
+//    private let reducer: (Event, inout State) -> Void
     
     public init(state: @escaping (State) -> ViewState, events: @escaping (ViewEvents, State) -> AnyPublisher<Action, Never>, effects: @escaping (AnyPublisher<State, Never>) -> AnyPublisher<Action, Never>) {
         mapState = state
         mapEvents = events
         mapEffects = effects
+//        reducer = reduce
     }
     
     public init<VM: ViewModelProtocol>(_ viewModel: VM) where VM.ViewState == ViewState, VM.ViewEvents == ViewEvents, VM.State == State {
         mapState = viewModel.map
         mapEvents = viewModel.map
         mapEffects = { AnyPublisher(viewModel.effects(states: $0)) }
+//        reducer = viewModel.reduce
     }
     
     public func map(state: State) -> ViewState {
@@ -72,4 +73,8 @@ public struct AnyViewModel<State: Equatable, ViewState, ViewEvents>: ViewModelPr
     public func effects<P: Publisher>(states: P) -> AnyPublisher<Action, Never> where State == P.Output, P.Failure == Never {
         mapEffects(AnyPublisher(states))
     }
+    
+//    public func reduce(action: Event, state: inout State) {
+//        reducer(action, &state)
+//    }
 }

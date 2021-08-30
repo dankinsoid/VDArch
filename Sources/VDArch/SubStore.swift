@@ -8,7 +8,7 @@
 
 import Foundation
 
-final class Substore<ParentState: StateType, State: StateType>: Store<State> {
+final class Substore<ParentState: Equatable, State: Equatable>: Store<State> {
 	
 	let parent: Store<ParentState>
 	let lens: Lens<ParentState, State>

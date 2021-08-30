@@ -7,7 +7,7 @@
 
 import Foundation
 
-open class Stores<A: StateType, B: StateType>: Store<UnionState<A, B>> {
+open class Stores<A: Equatable, B: Equatable>: Store<UnionState<A, B>> {
 	public let store1: Store<A>
 	public let store2: Store<B>
 	override public var state: UnionState<A, B> {
@@ -43,10 +43,14 @@ open class Stores<A: StateType, B: StateType>: Store<UnionState<A, B>> {
 	override open func connect(reducer: @escaping Reducer<UnionState<A, B>>) -> StoreUnsubscriber {
 		let def = state
 		let first = store1.connect {[weak self] action, state in
-			reducer(action, self.map { UnionState(state, $0.store2.state)} ?? def).a
+            var new = self.map { UnionState(state, $0.store2.state)} ?? def
+            reducer(action, &new)
+            state = new.a
 		}
 		let second = store2.connect {[weak self] action, state in
-			reducer(action, self.map { UnionState($0.store1.state, state) } ?? def).b
+            var new = self.map { UnionState($0.store1.state, state)} ?? def
+            reducer(action, &new)
+            state = new.b
 		}
 		return StoreUnsubscriber {
 			first.unsubscribe()

@@ -33,22 +33,22 @@ extension ViewProtocol where Self: AnyObject {
 extension ViewProtocol {
     
     public func effects<VM: ViewModelProtocol>(viewModel: VM) -> MVVMModule<VM, Self> where VM.ViewState == Properties, VM.ViewEvents == Events {
-        MVVMModule(viewModel: viewModel, view: self)
+        MVVMModule(view: self, viewModel: viewModel)
     }
 	
-	public func bind<VM: ViewModelProtocol, State: StateType>(_ viewModel: VM, in store: Store<State>, getter: @escaping (State) -> VM.State) where VM.ViewState == Properties, VM.ViewEvents == Events {
+	public func bind<VM: ViewModelProtocol, State: Equatable>(_ viewModel: VM, in store: Store<State>, getter: @escaping (State) -> VM.State) where VM.ViewState == Properties, VM.ViewEvents == Events {
         store.connect(effects: { viewModel.effects(states: $0.map(getter)) })
 	}
 	
-	public func bind<VM: ViewModelProtocol, State: StateType>(_ viewModel: VM, in store: Store<State>, at keyPath: KeyPath<State, VM.State>) where VM.ViewState == Properties, VM.ViewEvents == Events {
+	public func bind<VM: ViewModelProtocol, State: Equatable>(_ viewModel: VM, in store: Store<State>, at keyPath: KeyPath<State, VM.State>) where VM.ViewState == Properties, VM.ViewEvents == Events {
 		bind(viewModel, in: store, getter: { $0[keyPath: keyPath] })
 	}
 	
-	public func bind<VM: ViewModelProtocol, State: StateType>(_ viewModel: VM, in store: Store<State>, at keyPath: KeyPath<State, VM.State?>, or value: VM.State) where VM.ViewState == Properties, VM.ViewEvents == Events {
+	public func bind<VM: ViewModelProtocol, State: Equatable>(_ viewModel: VM, in store: Store<State>, at keyPath: KeyPath<State, VM.State?>, or value: VM.State) where VM.ViewState == Properties, VM.ViewEvents == Events {
 		bind(viewModel, in: store, getter: { $0[keyPath: keyPath] ?? value })
 	}
 	
-	public func bind<VM: ViewModelProtocol, State: StateType>(_ viewModel: VM, in store: Store<State>) where VM.ViewState == Properties, VM.ViewEvents == Events, VM.State == State {
+	public func bind<VM: ViewModelProtocol, State>(_ viewModel: VM, in store: Store<State>) where VM.ViewState == Properties, VM.ViewEvents == Events, VM.State == State {
 		bind(viewModel, in: store, getter: { $0 })
 	}
 	

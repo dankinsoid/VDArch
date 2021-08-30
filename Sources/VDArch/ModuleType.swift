@@ -7,4 +7,4 @@
 
 import Foundation
 
-public typealias ModuleType = EffectsType & ReducerType
+public typealias ModuleType = EffectsType & ReducerModule

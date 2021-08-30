@@ -15,7 +15,6 @@ import SwiftUI
 final class VDArchTests: XCTestCase {
 	@EnvironmentObject var store: Store<State>
 	
-	
 	func testExample() {
 		var state = State()
 		
@@ -29,9 +28,7 @@ final class VDArchTests: XCTestCase {
 		let expectations = (0..<3).map { expectation(description: "\($0)") }
 		var count = 0
 		let store = Store(reducer: { _, state in
-			var result = state
-			result.double = .random(in: 0...10)
-			return result
+            state.double = .random(in: 0...10)
 		}, state: State())
 		var cancellable = CancellablePublisher()
 		store.cb.prefix(untilOutputFrom: cancellable).subscribe { _ in
@@ -51,7 +48,7 @@ final class VDArchTests: XCTestCase {
  	]
 	
 	@available(iOS 13.0, *)
-	private final class _Subscriber<State: StateType>: StoreSubscriber, Subscriber {
+	private final class _Subscriber<State: Equatable>: StoreSubscriber, Subscriber {
 		
 		typealias Input = State
 		typealias Failure = Never
@@ -79,7 +76,7 @@ final class VDArchTests: XCTestCase {
 	
 }
 
-struct State: StateType, Codable, Equatable {
+struct State: Equatable, Codable {
 	var substate = SubState()
 	var double = 2.4
 	var bool = true
@@ -87,16 +84,16 @@ struct State: StateType, Codable, Equatable {
 	@NonCacheable(false) var isAnimating = true
 }
 
-struct State2: StateType, Codable, Equatable {
+struct State2: Equatable, Codable {
 	var double = 2.4
 	var bool = true
 }
 
-struct SubState: StateType, Codable, Equatable {
+struct SubState: Equatable, Codable {
 	var value = 0
 	var sub = SubSubState()
 }
 
-struct SubSubState: StateType, Codable, Equatable {
+struct SubSubState: Equatable, Codable {
 	var string = "string"
 }
