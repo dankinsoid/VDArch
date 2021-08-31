@@ -28,13 +28,13 @@ public struct NonCacheable<Value: Codable>: Codable {
 		try saveValue.encode(to: encoder)
 	}
 	
+    public init(wrappedValue: Value) {
+        saveValue = wrappedValue
+        self.wrappedValue = wrappedValue
+    }
 }
 
 extension NonCacheable where Value: OptionalProtocol {
-	public init(wrappedValue: Value) {
-		saveValue = .init(nil)
-		self.wrappedValue = wrappedValue
-	}
 	
 	public init() {
 		saveValue = .init(nil)
@@ -43,23 +43,23 @@ extension NonCacheable where Value: OptionalProtocol {
 }
 
 extension NonCacheable where Value: ExpressibleByArrayLiteral {
-	public init(wrappedValue: Value) {
+	public init() {
 		saveValue = []
-		self.wrappedValue = wrappedValue
+		self.wrappedValue = saveValue
 	}
 }
 
 extension NonCacheable where Value: ExpressibleByDictionaryLiteral {
-	public init(wrappedValue: Value) {
+	public init() {
 		saveValue = [:]
-		self.wrappedValue = wrappedValue
+		self.wrappedValue = saveValue
 	}
 }
 
 extension NonCacheable where Value: ExpressibleByStringLiteral {
-	public init(wrappedValue: Value) {
+	public init() {
 		saveValue = ""
-		self.wrappedValue = wrappedValue
+		self.wrappedValue = saveValue
 	}
 }
 
