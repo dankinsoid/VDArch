@@ -27,6 +27,20 @@ public struct ViewModelEnvironment<Events, State>: DynamicProperty {
 	}
 }
 
+extension StoreType {
+    public func binding(set: @escaping (State) -> Action) -> Binding<State> {
+        binding(get: \.self, set: set)
+    }
+    
+    public func binding<T>(get: KeyPath<State, T>, set: @escaping (T) -> Action) -> Binding<T> {
+        Binding(get: { state[keyPath: get] }, set: { dispatch(set($0)) })
+    }
+    
+    public func binding<T>(_ value: T, set: @escaping (T) -> Action) -> Binding<T> {
+        Binding(get: { value }, set: { dispatch(set($0)) })
+    }
+}
+
 extension ViewModelEnvironment {
 	
 	public func binding<T>(get: KeyPath<State, T>, set: @escaping (T) -> Events) -> Binding<T> {
