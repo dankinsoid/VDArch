@@ -10,3 +10,4 @@ import Foundation
 import Combine
 
 public typealias Reducer<ReducerStateType> = (_ action: Action, _ state: inout ReducerStateType) -> AnyPublisher<Action, Never>
+

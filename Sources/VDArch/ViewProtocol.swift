@@ -37,7 +37,7 @@ extension ViewProtocol {
     }
 	
 	public func bind<VM: ViewModelProtocol, State: Equatable>(_ viewModel: VM, in store: Store<State>, getter: @escaping (State) -> VM.State) where VM.ViewState == Properties, VM.ViewEvents == Events {
-        store.connect(effects: { viewModel.effects(states: $0.map(getter)) })
+        store.connect(effects: { effects(viewModel: viewModel).effects(states: $0.map(getter)) })
 	}
 	
 	public func bind<VM: ViewModelProtocol, State: Equatable>(_ viewModel: VM, in store: Store<State>, at keyPath: KeyPath<State, VM.State>) where VM.ViewState == Properties, VM.ViewEvents == Events {

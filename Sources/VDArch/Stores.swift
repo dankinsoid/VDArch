@@ -31,7 +31,7 @@ open class Stores<A: Equatable, B: Equatable>: Store<UnionState<A, B>> {
 	
 	override func defaultDispatch(action: Action, completion: ((State) -> Void)?) {
 		DoubleCallback<Void> {
-			self.notify(action: action)
+            self.notify(action: action)
 			completion?(self.state)
 		}.execute(
 			{ c in store1.dispatch(action, completion: { _ in c(()) }) },

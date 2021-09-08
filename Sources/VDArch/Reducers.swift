@@ -40,6 +40,7 @@ extension ReducerModule {
 	public func reduceAny(action: Action, state: inout State) -> AnyPublisher<Action, Never> {
         guard let event = action as? Event else { return .empty() }
 		return reduce(action: event, state: &state)
+      
 	}
 }
 
@@ -48,6 +49,7 @@ extension ReducerBaseModule {
     public func asGlobal<S: Equatable>(with lens: Lens<S, State>) -> Reducer<S> {
 		return { action, state in
             var newState = lens.get(state)
+         
             let result = self.reduceAny(action: action, state: &newState)
             state = lens.set(state, newState)
             return result

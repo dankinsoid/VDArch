@@ -259,7 +259,7 @@ extension StoreUnsubscriber: Cancellable {
 
 extension Store: ObservableObject {
 	public typealias ObjectWillChangePublisher = CombineStore<Store>
-	
+    
 	public var objectWillChange: CombineStore<Store> {
 		cb
 	}
