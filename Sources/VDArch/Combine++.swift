@@ -225,7 +225,7 @@ fileprivate final class CombineStoreSubscription<Store: StoreType, Input, S: Sub
 	}
 	
 	func request(_ demand: Subscribers.Demand) {
-		unsubscriber?.unsubscribe()
+		guard unsubscriber == nil else { return }
 		unsubscriber = store?.subscribe(CombineStoreSubscriber(willSet: willSet) {[self] _new, _old in
 			let new = map(_new)
 			let old = _old.map(map)

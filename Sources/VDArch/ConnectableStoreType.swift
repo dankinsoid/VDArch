@@ -17,7 +17,7 @@ public protocol ConnectableStoreType: StoreType {
 extension ConnectableStoreType {
 	
 	@discardableResult
-    public func connect<SubState: Equatable>(reducer: @escaping Reducer<SubState>, lens: Lens<State, SubState>) -> StoreUnsubscriber {
+	public func connect<SubState: Equatable>(reducer: @escaping Reducer<SubState>, lens: Lens<State, SubState>) -> StoreUnsubscriber {
 		connect(reducer: ReducerWrapped(reducer), lens: lens)
 	}
 	
@@ -65,7 +65,6 @@ extension ConnectableStoreType {
 			)
 		)
 	}
-	
 }
 
 public struct StoreUnsubscriber {
@@ -75,7 +74,6 @@ public struct StoreUnsubscriber {
 	public func unsubscribe() {
 		action()
 	}
-	
 }
 
 private final class ReducerWrapped<State: Equatable>: ReducerBaseModule {
@@ -85,8 +83,7 @@ private final class ReducerWrapped<State: Equatable>: ReducerBaseModule {
 		self.reducer = reducer
 	}
 	
-    func reduceAny(action: Action, state: inout State) -> AnyPublisher<Action, Never> {
-        reducer(action, &state)
-    }
+	func reduceAny(action: Action, state: inout State) -> AnyPublisher<Action, Never> {
+		reducer(action, &state)
+	}
 }
-

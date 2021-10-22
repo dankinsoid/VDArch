@@ -7,12 +7,12 @@
 //
 
 /**
-This class is the default implementation of the `StoreType` protocol. You will use this store in most
-of your applications. You shouldn't need to implement your own store.
-You initialize the store with a reducer and an initial application state. If your app has multiple
-reducers you can combine them by initializng a `MainReducer` with all of your reducers as an
-argument.
-*/
+ This class is the default implementation of the `StoreType` protocol. You will use this store in most
+ of your applications. You shouldn't need to implement your own store.
+ You initialize the store with a reducer and an initial application state. If your app has multiple
+ reducers you can combine them by initializng a `MainReducer` with all of your reducers as an
+ argument.
+ */
 
 import Foundation
 import Combine
@@ -133,16 +133,16 @@ open class Store<State: Equatable>: ConnectableStoreType {
 	
 	func defaultDispatch(action: Action, completion: ((State) -> Void)?) {
 		queue.async {[self] in
-            reduce(action: action)
+			reduce(action: action)
 			notify(action: action)
-            completion?(self.state)
+			completion?(self.state)
 		}
 	}
 	
 	final func notify(action: Action) {
 		actionSubscriptions.forEach {
 			$0.newState(action, nil)
-		 }
+		}
 	}
 	
 	final func notify(newValue: State) {
@@ -192,7 +192,7 @@ open class Store<State: Equatable>: ConnectableStoreType {
 	}
 	
 	private func reduce(action: Action) {
-        var actions: [AnyPublisher<Action, Never>] = []
+		var actions: [AnyPublisher<Action, Never>] = []
 		ids.forEach {
 			lock.lock()
 			guard let reducer = reducers[$0] else {
@@ -200,11 +200,11 @@ open class Store<State: Equatable>: ConnectableStoreType {
 				return
 			}
 			lock.unlock()
-            actions.append(reducer(action, &state))
+			actions.append(reducer(action, &state))
 		}
-        Publishers.MergeMany(actions).subscribe {[weak self] in
-            self?.dispatch($0)
-        }
+		Publishers.MergeMany(actions).subscribe {[weak self] in
+			self?.dispatch($0)
+		}
 	}
 	
 	private func unsubscribe(id: UUID) {

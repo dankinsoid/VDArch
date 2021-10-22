@@ -114,7 +114,7 @@ extension MVVMView {
 @available(iOS 13.0, *)
 extension MVVMView where Events == Action {
 	
-	public func store<VM: ViewModelProtocol, State: Equatable>(_ store: Store<Properties>) -> some View {
+	public func store<State: Equatable>(_ store: Store<Properties>) -> some View {
 		let object = ViewModelObject(
 			store.cb.asDriver(),
 			value: { store.state },
