@@ -22,9 +22,24 @@ extension Observable: ArrayInitable {
 	}
 }
 
-public typealias DisposableBuilder = ComposeBuilder<DisposableCreater>
-public typealias ObservableBuilder<Element> = ComposeBuilder<Observable<Element>>
+public typealias DisposableBuilder = ArrayBuilder<Disposable>
+public typealias ObservableBuilder<Element> = ArrayBuilder<Observable<Element>>
 
+extension ArrayBuilder where T: ObservableConvertibleType {
+	public static func buildExpression<O: ObservableConvertibleType>(_ expression: O) -> [Observable<T.Element>] where T == Observable<O.Element> {
+		[expression.asObservable()]
+	}
+	
+	public static func buildFinalResult<O>(_ component: [T]) -> Observable<O> where T == Observable<O> {
+		Observable.merge(component)
+	}
+}
+
+extension ArrayBuilder where T == Disposable {
+	public static func buildFinalResult(_ component: [Disposable]) -> Disposable {
+		Disposables.create(component)
+	}
+}
 
 extension Disposables {
 	

@@ -78,12 +78,14 @@ extension ViewProtocol {
 			return viewModel.map(event: event, state: getter(model, view)).catch { _ in .never() }
 		}
 		.share()
-		return Disposables.create([
-			disposables,
-			disposables2,
-			rxEvents.bind(to: viewStore.rx.dispatcher),
-			modelStore !== viewStore ? rxEvents.bind(to: modelStore.rx.dispatcher) : nil
-		].compactMap { $0 })
+		return Disposables.build {
+			disposables
+			disposables2
+			rxEvents.bind(to: viewStore.rx.dispatcher)
+			if modelStore !== viewStore {
+				rxEvents.bind(to: modelStore.rx.dispatcher)
+			}
+		}
 	}
 	
 	public func bind<VM: ViewModelProtocol, State: StateType>(_ viewModel: VM, in store: Store<State>, at keyPath: KeyPath<State, VM.ModelState>) -> Disposable where VM.ViewState == Properties, VM.ViewEvents == Events {
