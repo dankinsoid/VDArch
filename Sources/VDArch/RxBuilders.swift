@@ -25,6 +25,13 @@ extension Observable: ArrayInitable {
 public typealias DisposableBuilder = ArrayBuilder<Disposable>
 public typealias ObservableBuilder<Element> = ArrayBuilder<Observable<Element>>
 
+extension ArrayBuilder {
+    
+    public static func buildFinalResult(_ component: [T]) -> [T] {
+        component
+    }
+}
+
 extension ArrayBuilder where T: ObservableConvertibleType {
 	public static func buildExpression<O: ObservableConvertibleType>(_ expression: O) -> [Observable<T.Element>] where T == Observable<O.Element> {
 		[expression.asObservable()]
