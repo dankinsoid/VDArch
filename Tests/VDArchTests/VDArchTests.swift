@@ -1,13 +1,6 @@
-//
-//  VDArchTests.swift
-//  
-//
-//  Created by Данил Войдилов on 12.01.2021.
-//
-
 import XCTest
-@testable import RxSwift
-@testable import RxOperators
+import RxSwift
+import RxOperators
 @testable import VDArch
 
 final class VDArchTests: XCTestCase {

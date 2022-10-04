@@ -1,113 +1,60 @@
-//
-//  Rx++.swift
-//  VDArch
-//
-//  Created by Daniil on 21.10.2020.
-//  Copyright © 2020 Daniil. All rights reserved.
-//
-
 import Foundation
 import RxSwift
 import RxCocoa
 import RxOperators
+import ComposableArchitecture
 
-extension StoreSubscriber {
-	
-	public func asObserver() -> AnyObserver<StoreSubscriberStateType> {
-		AnyObserver {
-			guard case .next(let state) = $0 else { return }
-			self.newState(state: state, oldState: nil)
-		}
-	}
-	
-}
-
-extension StoreType {
-	public var rx: RxStore<Self> { RxStore(self) }
+extension ViewStore {
+    public var rx: RxStore<State, Action> { RxStore(self) }
 }
 
 @dynamicMemberLookup
-public struct RxStore<Store: StoreType>: ObservableType {
-	public typealias Element = Store.State
-	public let base: Store
+public struct RxStore<State, Action>: ObservableType {
+	public typealias Element = State
+	public let base: ViewStore<State, Action>
 	
 	public var dispatcher: AnyObserver<Action> {
 		AnyObserver {[base] in
 			guard case .next(let action) = $0 else { return }
-			base.dispatch(action)
+            base.send(action)
 		}
 	}
 	
-	public init(_ store: Store) {
-		base = store
+    public init(_ store: ViewStore<State, Action>) {
+        base = store
+    }
+    
+	public subscript<T>(dynamicMember keyPath: KeyPath<Element, T>) -> StoreObservable<State, Action, T> {
+		StoreObservable<State, Action, T>(base: base, map: { $0[keyPath: keyPath] })
 	}
 	
-	public subscript<T>(dynamicMember keyPath: KeyPath<Element, T>) -> StoreObservable<Store, T> {
-		StoreObservable<Store, T>(base: base, condition: {_, _ in true }, map: { $0[keyPath: keyPath] })
+	public func subscribe<Observer: ObserverType>(_ observer: Observer) -> Disposable where State == Observer.Element {
+        let cancellable = base.publisher.sink { state in
+            observer.onNext(state)
+        }
+        return Disposables.create {
+            cancellable.cancel()
+        }
 	}
-	
-	public subscript<T: Equatable>(dynamicMember keyPath: KeyPath<Element, T>) -> StoreObservable<Store, T> {
-		StoreObservable<Store, T>(base: base, condition: !=, map: { $0[keyPath: keyPath] })
-	}
-	
-	public func subscribe<Observer: ObserverType>(_ observer: Observer) -> Disposable where Store.State == Observer.Element {
-		let subscriber = RxStoreSubscriber<Store.State> { new, _ in
-			observer.onNext(new)
-		}
-		return Disposables.create(with: base.subscribe(subscriber).unsubscribe)
-	}
-	
 }
 
 @dynamicMemberLookup
-public struct StoreObservable<Store: StoreType, Element>: ObservableType {
-	public let base: Store
-	let condition: (Element, Element?) -> Bool
-	let map: (Store.State) -> Element
+public struct StoreObservable<State, Action, Element>: ObservableType {
+    
+	public let base: ViewStore<State, Action>
+	let map: (State) -> Element
 	
-	public subscript<T>(dynamicMember keyPath: KeyPath<Element, T>) -> StoreObservable<Store, T> {
-		StoreObservable<Store, T>(base: base, condition: {_, _ in true}, map: {[map] in map($0)[keyPath: keyPath] })
-	}
-	
-	public subscript<T: Equatable>(dynamicMember keyPath: KeyPath<Element, T>) -> StoreObservable<Store, T> {
-		StoreObservable<Store, T>(base: base, condition: !=, map: {[map] in map($0)[keyPath: keyPath] })
+	public subscript<T>(dynamicMember keyPath: KeyPath<Element, T>) -> StoreObservable<State, Action, T> {
+		StoreObservable<State, Action, T>(base: base, map: {[map] in map($0)[keyPath: keyPath] })
 	}
 	
 	public func subscribe<Observer: ObserverType>(_ observer: Observer) -> Disposable where Element == Observer.Element {
-		let subscriber = RxStoreSubscriber<Store.State> {[map] _new, _old in
-			let new = map(_new)
-			let old = _old.map(map)
-			if condition(new, old) {
-				observer.onNext(new)
-			}
-		}
-		return Disposables.create(with: base.subscribe(subscriber).unsubscribe)
-	}
-	
-}
-
-extension RxStore where Store: DispatchingStoreType {
-	
-	public var actions: Observable<Action> {
-		Observable.create { observer in
-			let subscriber = RxStoreSubscriber<Action> { new, old in
-				observer.onNext(new)
-			}
-			return Disposables.create(with:  base.observeActions(subscriber).unsubscribe)
-		}
-	}
-	
-}
-
-fileprivate final class RxStoreSubscriber<Element>: StoreSubscriber {
-	let observer: (Element, Element?) -> Void
-	
-	init(observer: @escaping (Element, Element?) -> Void) {
-		self.observer = observer
-	}
-	
-	func newState(state: Element, oldState: Element?) {
-		observer(state, oldState)
+        let cancellable = base.publisher.sink { [map] state in
+            observer.onNext(map(state))
+        }
+        return Disposables.create {
+            cancellable.cancel()
+        }
 	}
 }
 
@@ -115,14 +62,6 @@ extension Reactive where Base: ViewProtocol {
 	
 	public var events: Observable<Base.Events> {
 		base.events
-	}
-	
-}
-
-extension StoreUnsubscriber: Disposable {
-	
-	public func dispose() {
-		unsubscribe()
 	}
 	
 }

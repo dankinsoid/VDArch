@@ -1,12 +1,3 @@
-//
-//  StateDriver.swift
-//  VDArch
-//
-//  Created by Daniil on 21.10.2020.
-//  Copyright © 2020 Daniil. All rights reserved.
-//
-
-import VDKit
 import RxSwift
 import RxCocoa
 import RxOperators
@@ -52,14 +43,14 @@ extension StateDriver where Element: Equatable {
 	}
 }
 
-extension StateDriver where Element: OptionalProtocol {
+extension StateDriver {
 	
-	public subscript<T>(dynamicMember keyPath: KeyPath<Element.Wrapped, T>) -> StateDriver<T?> {
-		return map { $0.asOptional()?[keyPath: keyPath] }
+	public subscript<A, T>(dynamicMember keyPath: KeyPath<A, T>) -> StateDriver<T?> where A? == Element {
+        return map { $0?[keyPath: keyPath] }
 	}
 	
-	public subscript<T>(dynamicMember keyPath: KeyPath<Element.Wrapped, T?>) -> StateDriver<T?> {
-		return map { $0.asOptional()?[keyPath: keyPath] }
+	public subscript<A, T>(dynamicMember keyPath: KeyPath<A, T?>) -> StateDriver<T?> where A? == Element {
+		return map { $0?[keyPath: keyPath] }
 	}
 	
 }
