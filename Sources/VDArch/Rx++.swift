@@ -1,4 +1,5 @@
 import Foundation
+import Combine
 import RxSwift
 import RxCocoa
 import RxOperators
@@ -63,10 +64,31 @@ extension Reactive where Base: ViewProtocol {
 	public var events: Observable<Base.Events> {
 		base.events
 	}
-	
 }
 
-public func =>><V: ViewProtocol, O: ObservableConvertibleType>(_ lhs: O, _ rhs: Reactive<V>?) -> Disposable where O.Element == V.Properties, V.Properties: Equatable {
+extension Publisher {
+    
+    func asDriver() -> Driver<Output> {
+        Observable.create { observer in
+            let cancellable = sink {
+                switch $0 {
+                case .finished:
+                    observer.onCompleted()
+                case .failure(let failure):
+                    observer.onError(failure)
+                }
+            } receiveValue: {
+                observer.onNext($0)
+            }
+            return Disposables.create {
+                cancellable.cancel()
+            }
+        }
+        .asDriver()
+    }
+}
+
+public func =>><V: ViewProtocol, O: ObservableConvertibleType>(_ lhs: O, _ rhs: Reactive<V>?) -> Disposable where O.Element == V.Properties {
 	rhs?.base.bind(lhs.asObservable().distinctUntilChanged()) ?? Disposables.create()
 }
 

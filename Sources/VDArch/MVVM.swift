@@ -5,7 +5,7 @@ import ComposableArchitecture
 
 public protocol ViewProtocol {
     
-	associatedtype Properties
+    associatedtype Properties: Equatable
 	associatedtype Events
 	typealias EventsBuilder = ObservableBuilder<Events>
 	var events: Observable<Events> { get }
@@ -13,13 +13,14 @@ public protocol ViewProtocol {
 }
 
 public protocol ViewModelProtocol {
-	associatedtype ModelState: Equatable
-	associatedtype ViewState
-	associatedtype ViewEvents
+    
+    associatedtype ModelState
+    associatedtype ViewState: Equatable
+    associatedtype ViewEvents
     associatedtype Action
 	
 	func map(state: ModelState) -> ViewState
-	func map(event: ViewEvents, state: ModelState) -> Observable<Action>
+	func map(event: ViewEvents) -> Action
 }
 
 extension ViewModelProtocol where ModelState == ViewState {
@@ -32,30 +33,16 @@ extension ViewModelProtocol where ViewEvents == Action {
 
 extension ViewProtocol {
 	
-    public func bind<VM: ViewModelProtocol, State>(_ viewModel: VM, in store: ViewStore<State, VM.Action>, getter: @escaping (State) -> VM.ModelState) -> Disposable where VM.ViewState == Properties, VM.ViewEvents == Events {
-		let source = store.rx.map(getter).skipEqual()
-		let driver = source.map { viewModel.map(state: $0) }.asDriver()
+    public func bind<VM: ViewModelProtocol>(_ viewModel: VM, in store: Store<VM.ModelState, VM.Action>) -> Disposable where VM.ViewState == Properties, VM.ViewEvents == Events {
+        let viewStore = ViewStore(store, observe: viewModel.map(state:), send: viewModel.map(event:))
+        let driver = viewStore.publisher.asDriver()
 		let disposables = bind(StateDriver(driver))
 		return Disposables.create([
 			disposables,
-            events.flatMap {[weak store] event -> Observable<VM.Action> in
-				guard let state = store?.state else { return .never() }
-				return viewModel.map(event: event, state: getter(state))
-			}
-			.bind(to: store.rx.dispatcher)
+            events.bind(onNext: { action in
+                viewStore.send(action)
+            })
 		])
-	}
-	
-    public func bind<VM: ViewModelProtocol, State>(_ viewModel: VM, in store: ViewStore<State, VM.Action>, at keyPath: KeyPath<State, VM.ModelState>) -> Disposable where VM.ViewState == Properties, VM.ViewEvents == Events {
-		bind(viewModel, in: store, getter: { $0[keyPath: keyPath] })
-	}
-	
-    public func bind<VM: ViewModelProtocol, State>(_ viewModel: VM, in store: ViewStore<State, VM.Action>, at keyPath: KeyPath<State, VM.ModelState?>, or value: VM.ModelState) -> Disposable where VM.ViewState == Properties, VM.ViewEvents == Events {
-		bind(viewModel, in: store, getter: { $0[keyPath: keyPath] ?? value })
-	}
-	
-    public func bind<VM: ViewModelProtocol>(_ viewModel: VM, in store: ViewStore<VM.ModelState, VM.Action>) -> Disposable where VM.ViewState == Properties, VM.ViewEvents == Events {
-		bind(viewModel, in: store, getter: { $0 })
 	}
 	
 	public func bind<O: ObservableConvertibleType>(_ state: O) -> Disposable where O.Element == Properties {
@@ -97,12 +84,12 @@ extension ViewProtocol where Self: AnyObject {
 private var propertiesSubjectKey = "_propertiesSubject"
 private var eventsSubjectKey = "_eventsSubject"
 
-public struct AnyViewModel<ModelState: Equatable, ViewState, ViewEvents, Action>: ViewModelProtocol {
+public struct AnyViewModel<ModelState, ViewState: Equatable, ViewEvents, Action>: ViewModelProtocol {
 	
 	private let mapState: (ModelState) -> ViewState
-	private let mapEvents: (ViewEvents, ModelState) -> Observable<Action>
+	private let mapEvents: (ViewEvents) -> Action
 	
-	public init(state: @escaping (ModelState) -> ViewState, events: @escaping (ViewEvents, ModelState) -> Observable<Action>) {
+	public init(state: @escaping (ModelState) -> ViewState, events: @escaping (ViewEvents) -> Action) {
 		mapState = state
 		mapEvents = events
 	}
@@ -116,10 +103,9 @@ public struct AnyViewModel<ModelState: Equatable, ViewState, ViewEvents, Action>
 		mapState(state)
 	}
 	
-	public func map(event: ViewEvents, state: ModelState) -> Observable<Action> {
-		mapEvents(event, state)
+	public func map(event: ViewEvents) -> Action {
+		mapEvents(event)
 	}
-	
 }
 
 extension ViewModelProtocol {
