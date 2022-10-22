@@ -20,7 +20,7 @@ public protocol ViewModelProtocol {
     associatedtype Action
 	
 	func map(state: ModelState) -> ViewState
-	func map(event: ViewEvents) -> Action
+	func map(event: ViewEvents, state: ModelState) -> Action?
 }
 
 extension ViewModelProtocol where ModelState == ViewState {
@@ -28,19 +28,21 @@ extension ViewModelProtocol where ModelState == ViewState {
 }
 
 extension ViewModelProtocol where ViewEvents == Action {
-	public func map(event: ViewEvents, state: ModelState) -> Observable<Action> { .just(event) }
+	public func map(event: ViewEvents, state: ModelState) -> Action? { event }
 }
 
 extension ViewProtocol {
 	
-    public func bind<VM: ViewModelProtocol>(_ viewModel: VM, in store: Store<VM.ModelState, VM.Action>) -> Disposable where VM.ViewState == Properties, VM.ViewEvents == Events {
-        let viewStore = ViewStore(store, observe: viewModel.map(state:), send: viewModel.map(event:))
+    public func bind<VM: ViewModelProtocol>(_ viewModel: VM, in store: Store<VM.ModelState, VM.Action>) -> Disposable where VM.ViewState == Properties, VM.ViewEvents == Events, VM.ModelState: Equatable {
+        let viewStore = ViewStore(store, observe: viewModel.map(state:))
         let driver = viewStore.publisher.asDriver()
 		let disposables = bind(StateDriver(driver))
 		return Disposables.create([
 			disposables,
             events.bind(onNext: { action in
-                viewStore.send(action)
+                if let event = viewModel.map(event: action, state: ViewStore(store).state) {
+                    viewStore.send(event)
+                }
             })
 		])
 	}
@@ -87,9 +89,9 @@ private var eventsSubjectKey = "_eventsSubject"
 public struct AnyViewModel<ModelState, ViewState: Equatable, ViewEvents, Action>: ViewModelProtocol {
 	
 	private let mapState: (ModelState) -> ViewState
-	private let mapEvents: (ViewEvents) -> Action
+	private let mapEvents: (ViewEvents, ModelState) -> Action?
 	
-	public init(state: @escaping (ModelState) -> ViewState, events: @escaping (ViewEvents) -> Action) {
+	public init(state: @escaping (ModelState) -> ViewState, events: @escaping (ViewEvents, ModelState) -> Action?) {
 		mapState = state
 		mapEvents = events
 	}
@@ -103,8 +105,8 @@ public struct AnyViewModel<ModelState, ViewState: Equatable, ViewEvents, Action>
 		mapState(state)
 	}
 	
-	public func map(event: ViewEvents) -> Action {
-		mapEvents(event)
+    public func map(event: ViewEvents, state: ModelState) -> Action? {
+		mapEvents(event, state)
 	}
 }
 

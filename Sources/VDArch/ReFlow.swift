@@ -5,11 +5,11 @@ public final class FlowCoordinator<Step> {
     
     private let navigate: (Step) -> Void
 	
-    public init<F: Flow>(flow: F) where F.Step == Step {
+    public nonisolated init<F: Flow>(flow: F) where F.Step == Step {
         navigate = flow.navigate
     }
     
-    public init(_ navigate: @escaping (Step) -> Void) {
+    public nonisolated init(_ navigate: @escaping (Step) -> Void) {
         self.navigate = navigate
     }
 	
