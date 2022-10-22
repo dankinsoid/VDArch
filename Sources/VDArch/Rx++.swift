@@ -5,7 +5,7 @@ import RxOperators
 import ComposableArchitecture
 
 extension ViewStore {
-    public var rx: RxStore<State, Action> { RxStore(self) }
+    public var rx: RxStore<ViewState, ViewAction> { RxStore(self) }
 }
 
 @dynamicMemberLookup
