@@ -60,7 +60,8 @@ public struct StoreObservable<State, Action, Element>: ObservableType {
 }
 
 extension Reactive where Base: ViewProtocol {
-	
+
+    @MainActor
 	public var events: Observable<Base.Events> {
 		base.events
 	}
@@ -88,10 +89,12 @@ extension Publisher {
     }
 }
 
+@MainActor
 public func =>><V: ViewProtocol, O: ObservableConvertibleType>(_ lhs: O, _ rhs: Reactive<V>?) -> Disposable where O.Element == V.Properties {
 	rhs?.base.bind(lhs.asObservable().distinctUntilChanged()) ?? Disposables.create()
 }
 
+@MainActor
 public func =>><Element, O: ObserverType>(_ lhs: StateDriver<Element>, _ rhs: O?) -> Disposable where O.Element == Element?, Element: Equatable {
 	guard let rhs = rhs else { return Disposables.create() }
 	return lhs.skipEqual() => rhs

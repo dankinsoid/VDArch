@@ -1,7 +1,7 @@
 import ComposableArchitecture
 
 @MainActor
-public final class FlowCoordinator<Step> {
+public struct FlowCoordinator<Step> {
     
     private let navigate: (Step) -> Void
 	
@@ -30,6 +30,7 @@ public final class FlowCoordinator<Step> {
     }
 }
 
+@MainActor
 public protocol Flow {
     associatedtype Step
     
