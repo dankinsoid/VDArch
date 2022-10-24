@@ -20,25 +20,24 @@ public protocol ViewModelProtocol {
     associatedtype ViewEvents
     associatedtype Action
     
-    func map(state: ModelState, send: Send<Action>) -> ViewState
-	func map(event: ViewEvents, state: ModelState, send: Send<Action>) -> Action?
+    typealias SendAction = (Action) -> ViewStoreTask
+    
+    func map(state: ModelState, send: SendAction) -> ViewState
+	func map(event: ViewEvents, state: ModelState, send: SendAction) -> Action?
 }
 
 extension ViewModelProtocol where ModelState == ViewState {
-    public func map(state: ModelState, send: Send<Action>) -> ViewState { state }
+    public func map(state: ModelState, send: SendAction) -> ViewState { state }
 }
 
 extension ViewModelProtocol where ViewEvents == Action {
-	public func map(event: ViewEvents, state: ModelState, send: Send<Action>) -> Action? { event }
+	public func map(event: ViewEvents, state: ModelState, send: SendAction) -> Action? { event }
 }
 
 extension ViewProtocol {
 	
     public func bind<VM: ViewModelProtocol>(_ viewModel: VM, in store: Store<VM.ModelState, VM.Action>) -> Disposable where VM.ViewState == Properties, VM.ViewEvents == Events, VM.ModelState: Equatable {
-        let send: Send<VM.Action> = Send { [weak store] in
-            guard let store = store else { return }
-            ViewStore(store).send($0)
-        }
+        let send: VM.SendAction = ViewStore(store).send
         let viewStore = ViewStore(store) {
             viewModel.map(state: $0, send: send)
         }
@@ -92,33 +91,3 @@ extension ViewProtocol where Self: AnyObject {
 
 private var propertiesSubjectKey = "_propertiesSubject"
 private var eventsSubjectKey = "_eventsSubject"
-
-public struct AnyViewModel<ModelState, ViewState: Equatable, ViewEvents, Action>: ViewModelProtocol {
-	
-	private let mapState: (ModelState, Send<Action>) -> ViewState
-	private let mapEvents: (ViewEvents, ModelState, Send<Action>) -> Action?
-	
-	public init(state: @escaping (ModelState, Send<Action>) -> ViewState, events: @escaping (ViewEvents, ModelState, Send<Action>) -> Action?) {
-		mapState = state
-		mapEvents = events
-	}
-	
-    public init<VM: ViewModelProtocol>(_ viewModel: VM) where VM.ViewState == ViewState, VM.ViewEvents == ViewEvents, VM.ModelState == ModelState, VM.Action == Action {
-		mapState = viewModel.map
-		mapEvents = viewModel.map
-	}
-	
-	public func map(state: ModelState, send: Send<Action>) -> ViewState {
-		mapState(state, send)
-	}
-	
-    public func map(event: ViewEvents, state: ModelState, send: Send<Action>) -> Action? {
-		mapEvents(event, state, send)
-	}
-}
-
-extension ViewModelProtocol {
-	public var asAny: AnyViewModel<ModelState, ViewState, ViewEvents, Action> {
-		AnyViewModel(self)
-	}
-}
