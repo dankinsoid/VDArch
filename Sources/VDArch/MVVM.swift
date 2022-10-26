@@ -20,33 +20,30 @@ public protocol ViewModelProtocol {
     associatedtype ViewEvents
     associatedtype Action
     
-    typealias SendAction = (Action) -> ViewStoreTask
-    
-    func map(state: ModelState, send: SendAction) -> ViewState
-	func map(event: ViewEvents, state: ModelState, send: SendAction) -> Action?
+    func map(state: ModelState) -> ViewState
+	func map(event: ViewEvents, state: ModelState) -> Action?
 }
 
 extension ViewModelProtocol where ModelState == ViewState {
-    public func map(state: ModelState, send: SendAction) -> ViewState { state }
+    public func map(state: ModelState) -> ViewState { state }
 }
 
 extension ViewModelProtocol where ViewEvents == Action {
-	public func map(event: ViewEvents, state: ModelState, send: SendAction) -> Action? { event }
+	public func map(event: ViewEvents, state: ModelState) -> Action? { event }
 }
 
 extension ViewProtocol {
 	
     public func bind<VM: ViewModelProtocol>(_ viewModel: VM, in store: Store<VM.ModelState, VM.Action>) -> Disposable where VM.ViewState == Properties, VM.ViewEvents == Events, VM.ModelState: Equatable {
-        let send: VM.SendAction = ViewStore(store).send
         let viewStore = ViewStore(store) {
-            viewModel.map(state: $0, send: send)
+            viewModel.map(state: $0)
         }
         let driver = viewStore.publisher.asDriver()
 		let disposables = bind(StateDriver(driver))
 		return Disposables.create([
 			disposables,
             events.bind(onNext: { action in
-                if let event = viewModel.map(event: action, state: ViewStore(store).state, send: send) {
+                if let event = viewModel.map(event: action, state: ViewStore(store).state) {
                     viewStore.send(event)
                 }
             })
