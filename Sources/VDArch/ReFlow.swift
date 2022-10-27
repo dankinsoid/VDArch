@@ -1,23 +1,23 @@
 import ComposableArchitecture
 
-@MainActor
 public struct FlowCoordinator<Step> {
     
-    private let navigate: (Step) -> Void
+    private let navigate: @MainActor (Step) -> Void
 	
-    public nonisolated init<F: Flow>(flow: F) where F.Step == Step {
+    public init<F: Flow>(flow: F) where F.Step == Step {
         navigate = flow.navigate
     }
     
-    public nonisolated init(_ navigate: @escaping (Step) -> Void) {
+    public init(_ navigate: @escaping @MainActor (Step) -> Void) {
         self.navigate = navigate
     }
 	
+    @MainActor
     public func navigate(to step: Step) {
         navigate(step)
     }
     
-    public nonisolated func effect<A>(to step: Step) -> Effect<A, Never> {
+    public func effect<A>(to step: Step) -> Effect<A, Never> {
         .fireAndForget { [self] in
             await navigate(to: step)
         }
