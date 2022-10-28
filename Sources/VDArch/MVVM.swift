@@ -3,7 +3,6 @@ import RxSwift
 import RxOperators
 import ComposableArchitecture
 
-@MainActor
 public protocol ViewProtocol {
     
     associatedtype Properties: Equatable

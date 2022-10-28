@@ -83,7 +83,6 @@ extension ObservableConvertibleType {
 	
 }
 
-@MainActor
 public func =><V: ViewProtocol, O: ObservableConvertibleType>(_ lhs: O, _ rhs: Reactive<V>) -> Disposable where O.Element == V.Properties {
 	rhs.base.bind(lhs)
 }
