@@ -1,15 +1,18 @@
 import Foundation
-import RxSwift
-import RxOperators
+import Combine
+import CombineOperators
 import ComposableArchitecture
 
 public protocol ViewProtocol {
     
     associatedtype Properties: Equatable
 	associatedtype Events
-	typealias EventsBuilder = ObservableBuilder<Events>
-	var events: Observable<Events> { get }
-	func bind(state: StateDriver<Properties>) -> Disposable
+    associatedtype EventsPublisher: Publisher<Events, Never>
+	typealias EventsBuilder = ObservableBuilder<Events, Never>
+    @EventsBuilder
+	var events: EventsPublisher { get }
+    @CancellableBuilder
+	func bind(state: StateDriver<Properties>) -> AnyCancellable
 }
 
 public protocol ViewModelProtocol {
@@ -33,51 +36,45 @@ extension ViewModelProtocol where ViewEvents == Action {
 
 extension ViewProtocol {
 	
-    public func bind<VM: ViewModelProtocol>(_ viewModel: VM, in store: Store<VM.ModelState, VM.Action>) -> Disposable where VM.ViewState == Properties, VM.ViewEvents == Events, VM.ModelState: Equatable {
+    public func bind<VM: ViewModelProtocol>(_ viewModel: VM, in store: Store<VM.ModelState, VM.Action>) -> AnyCancellable where VM.ViewState == Properties, VM.ViewEvents == Events, VM.ModelState: Equatable {
         let viewStore = ViewStore(store) {
             viewModel.map(state: $0)
         }
         let driver = viewStore.publisher.asDriver()
-		let disposables = bind(StateDriver(driver))
-		return Disposables.create([
-			disposables,
-            events.bind(onNext: { action in
+        return .create {
+            bind(state: StateDriver(driver))
+            events.sink { action in
                 if let event = viewModel.map(event: action, state: ViewStore(store).state) {
                     viewStore.send(event)
                 }
-            })
-		])
+            }
+        }
 	}
 	
-	public func bind<O: ObservableConvertibleType>(_ state: O) -> Disposable where O.Element == Properties {
-		Disposables.create([
-			bind(state: state.asState())
-		])
+	public func bind(_ state: some Publisher<Properties, Never>) -> AnyCancellable {
+        bind(state: state.asState())
 	}
 	
-	public func bind<Source: ObservableConvertibleType, Observer: ObserverType>(source: Source, observer: Observer) -> Disposable where Source.Element == Properties, Observer.Element == Events {
-		Disposables.create(bind(source), bind(state: source.asState()), events.bind(to: observer))
+	public func bind(source: some Publisher<Properties, Never>, observer: some Subscriber<Events, Never>) -> AnyCancellable {
+		AnyCancellable(bind(state: source.asState()), events.sink(observer))
 	}
 }
 
 extension ViewProtocol where Self: AnyObject {
 	
-	public func bind<O: ObservableConvertibleType>(_ state: O) where O.Element == Properties {
-		bind(state).disposed(by: Reactive(self).asDisposeBag)
-	}
-	
 	public func set(state: Properties) {
-		_propertiesSubject.onNext(state)
+		_propertiesSubject.send(state)
 	}
 	
-	private var _propertiesSubject: PublishSubject<Properties> {
+	private var _propertiesSubject: PassthroughSubject<Properties, Never> {
 		get {
-			if let subject = objc_getAssociatedObject(self, &propertiesSubjectKey) as? PublishSubject<Properties> {
+			if let subject = objc_getAssociatedObject(self, &propertiesSubjectKey) as? PassthroughSubject<Properties, Never> {
 				return subject
 			}
-			let subject = PublishSubject<Properties>()
+			let subject = PassthroughSubject<Properties, Never>()
 			objc_setAssociatedObject(self, &propertiesSubjectKey, subject, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
-			bind(subject)
+			let cancellable = bind(subject)
+            objc_setAssociatedObject(self, &disposableKey, cancellable, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
 			return subject
 		}
 		set {}
@@ -86,4 +83,4 @@ extension ViewProtocol where Self: AnyObject {
 }
 
 private var propertiesSubjectKey = "_propertiesSubject"
-private var eventsSubjectKey = "_eventsSubject"
+private var disposableKey = "disposableKey"

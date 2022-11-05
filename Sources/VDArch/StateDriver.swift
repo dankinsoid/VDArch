@@ -1,88 +1,82 @@
-import RxSwift
-import RxCocoa
-import RxOperators
+import Combine
+import CombineCocoa
+import CombineOperators
 
 @dynamicMemberLookup
-public struct StateDriver<Element>: ObservableType {
-	private let driver: Driver<Element>
+public struct StateDriver<Output>: Publisher {
+    public typealias Failure = Never
+	private let driver: Driver<Output>
 	
-	public init(_ driver: Driver<Element>) {
+	public init(_ driver: Driver<Output>) {
 		self.driver = driver
 	}
 	
-	public init(just: Element) {
-		self.driver = Single.just(just).asDriver(onErrorDriveWith: .never())
+	public init(just: Output) {
+		self.driver = Just(just).asDriver()
 	}
 	
-	public subscript<T>(dynamicMember keyPath: KeyPath<Element, T>) -> StateDriver<T> {
-		return map { $0[keyPath: keyPath] }
+	public subscript<T>(dynamicMember keyPath: KeyPath<Output, T>) -> StateDriver<T> {
+        map { $0[keyPath: keyPath] }
 	}
 	
-	public func map<T>(_ selector: @escaping (Element) -> T) -> StateDriver<T> {
-		return StateDriver<T>(driver.map(selector))
+	public func map<T>(_ selector: @escaping (Output) -> T) -> StateDriver<T> {
+        StateDriver<T>(driver.publisher.map(selector).asDriver())
 	}
 	
-	public func compactMap<T>(_ selector: @escaping (Element) -> T?) -> StateDriver<T> {
-		return StateDriver<T>(asObservable().compactMap(selector).asDriver())
+	public func compactMap<T>(_ selector: @escaping (Output) -> T?) -> StateDriver<T> {
+        StateDriver<T>(driver.publisher.compactMap(selector).asDriver())
 	}
 	
-	public func subscribe<Observer: ObserverType>(_ observer: Observer) -> Disposable where Element == Observer.Element {
-		return driver.asObservable().subscribe(observer)
-	}
-	
-	public func asObservable() -> Observable<Element> {
-		return driver.asObservable()
-	}
-	
+    public func receive<S>(subscriber: S) where S : Subscriber, Never == S.Failure, Output == S.Input {
+        driver.receive(subscriber: subscriber)
+    }
 }
 
-extension StateDriver where Element: Equatable {
+extension StateDriver where Output: Equatable {
 	
 	public func skipEqual() -> StateDriver {
-		StateDriver(driver.distinctUntilChanged())
+        StateDriver(driver.removeDuplicates().asDriver())
 	}
 }
 
 extension StateDriver {
 	
-	public subscript<A, T>(dynamicMember keyPath: KeyPath<A, T>) -> StateDriver<T?> where A? == Element {
-        return map { $0?[keyPath: keyPath] }
+	public subscript<A, T>(dynamicMember keyPath: KeyPath<A, T>) -> StateDriver<T?> where A? == Output {
+        map { $0?[keyPath: keyPath] }
 	}
 	
-	public subscript<A, T>(dynamicMember keyPath: KeyPath<A, T?>) -> StateDriver<T?> where A? == Element {
-		return map { $0?[keyPath: keyPath] }
-	}
-	
+    public subscript<A, T>(dynamicMember keyPath: KeyPath<A, T?>) -> StateDriver<T?> where A? == Output {
+        map { $0?[keyPath: keyPath] }
+    }
 }
 
-extension StateDriver where Element == Void {
+extension StateDriver where Output == Void {
 	
 	public func map<T>(_ selector: @escaping () -> T) -> StateDriver<T> {
-		return StateDriver<T>(driver.map(selector))
+        StateDriver<T>(driver.publisher.map(selector).asDriver())
 	}
-	
 }
 
 extension StateDriver {
 	
-	public func skipEqual<E: Equatable>(by keyPath: KeyPath<Element, E>) -> StateDriver {
-		StateDriver(driver.distinctUntilChanged({ $0[keyPath: keyPath] }))
+	public func skipEqual<E: Equatable>(by keyPath: KeyPath<Output, E>) -> StateDriver {
+        skipEqual { $0[keyPath: keyPath] == $1[keyPath: keyPath] }
 	}
 	
-	public func skipEqual<E: Equatable>(_ comparor: @escaping (Element) -> (E)) -> StateDriver {
-		StateDriver(driver.distinctUntilChanged(comparor))
-	}
-	
-}
-
-extension ObservableConvertibleType {
-	
-	public func asState() -> StateDriver<Element> {
-		StateDriver(asDriver(onErrorDriveWith: .never()))
+	public func skipEqual(_ comparor: @escaping (Output, Output) -> (Bool)) -> StateDriver {
+        StateDriver(driver.publisher.removeDuplicates(by: comparor).asDriver())
 	}
 	
 }
 
-public func =><V: ViewProtocol, O: ObservableConvertibleType>(_ lhs: O, _ rhs: Reactive<V>) -> Disposable where O.Element == V.Properties {
+extension Publisher {
+	
+	public func asState() -> StateDriver<Output> {
+		StateDriver(asDriver())
+	}
+	
+}
+
+public func =><V: ViewProtocol>(_ lhs: some Publisher<V.Properties, Never>, _ rhs: Reactive<V>) -> AnyCancellable {
 	rhs.base.bind(lhs)
 }

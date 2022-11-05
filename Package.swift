@@ -1,4 +1,4 @@
-// swift-tools-version:5.6
+// swift-tools-version:5.7
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 import PackageDescription
 
@@ -15,8 +15,7 @@ let package = Package(
         )
     ],
     dependencies: [
-        .package(url: "https://github.com/ReactiveX/RxSwift.git", from: "6.0.0"),
-        .package(url: "https://github.com/dankinsoid/RxOperators.git", from: "2.11.0"),
+        .package(url: "https://github.com/dankinsoid/CombineOperators.git", from: "2.0.1"),
         .package(url: "https://github.com/pointfreeco/swift-composable-architecture", from: "0.43.0")
     ],
     targets: [
@@ -25,8 +24,8 @@ let package = Package(
         .target(
             name: "VDArch",
             dependencies: [
-                "RxSwift",
-                "RxOperators",
+                "CombineOperators",
+                .product(name: "CombineCocoa", package: "CombineOperators"),
                 .product(name: "ComposableArchitecture", package: "swift-composable-architecture")
             ]
         )
