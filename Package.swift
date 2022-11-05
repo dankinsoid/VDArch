@@ -1,6 +1,5 @@
-// swift-tools-version:5.2
+// swift-tools-version:5.7
 // The swift-tools-version declares the minimum version of Swift required to build this package.
-
 import PackageDescription
 
 let package = Package(
@@ -13,23 +12,22 @@ let package = Package(
         .library(
             name: "VDArch",
             targets: ["VDArch"]
-				),
+        )
     ],
     dependencies: [
-        .package(url: "https://github.com/dankinsoid/VDKit.git", from: "1.116.0"),
-        .package(url: "https://github.com/dankinsoid/CombineOperators.git", from: "1.80.0")
+        .package(url: "https://github.com/dankinsoid/CombineOperators.git", from: "2.0.1"),
+        .package(url: "https://github.com/pointfreeco/swift-composable-architecture", from: "0.43.0")
     ],
     targets: [
         // Targets are the basic building blocks of a package. A target can define a module or a test suite.
         // Targets can depend on other targets in this package, and on products in packages which this package depends on.
-			.target(
-				name: "VDArch",
-				dependencies: ["VDKit", "CombineOperators", .product(name: "CombineCocoa", package: "CombineOperators")]
-			),
-			.testTarget(
-				name: "VDArchTests",
-				dependencies: ["VDArch"],
-				path: "Tests"
-			)
+        .target(
+            name: "VDArch",
+            dependencies: [
+                "CombineOperators",
+                .product(name: "CombineCocoa", package: "CombineOperators"),
+                .product(name: "ComposableArchitecture", package: "swift-composable-architecture")
+            ]
+        )
     ]
 )
