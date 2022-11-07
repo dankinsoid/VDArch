@@ -5,7 +5,10 @@ import CombineOperators
 @dynamicMemberLookup
 public struct StateDriver<Output>: Publisher {
     public typealias Failure = Never
-	private let driver: Driver<Output>
+    public let driver: Driver<Output>
+    public var upstream: AnyPublisher<Output, Never> {
+        driver.publisher
+    }
 	
 	public init(_ driver: Driver<Output>) {
 		self.driver = driver
@@ -20,11 +23,11 @@ public struct StateDriver<Output>: Publisher {
 	}
 	
 	public func map<T>(_ selector: @escaping (Output) -> T) -> StateDriver<T> {
-        StateDriver<T>(driver.publisher.map(selector).asDriver())
+        upstream.map(selector).asState()
 	}
 	
 	public func compactMap<T>(_ selector: @escaping (Output) -> T?) -> StateDriver<T> {
-        StateDriver<T>(driver.publisher.compactMap(selector).asDriver())
+        upstream.compactMap(selector).asState()
 	}
 	
     public func receive<S>(subscriber: S) where S : Subscriber, Never == S.Failure, Output == S.Input {
@@ -35,7 +38,7 @@ public struct StateDriver<Output>: Publisher {
 extension StateDriver where Output: Equatable {
 	
 	public func skipEqual() -> StateDriver {
-        StateDriver(driver.removeDuplicates().asDriver())
+        StateDriver(driver.publisher.removeDuplicates().asDriver())
 	}
 }
 
@@ -53,7 +56,7 @@ extension StateDriver {
 extension StateDriver where Output == Void {
 	
 	public func map<T>(_ selector: @escaping () -> T) -> StateDriver<T> {
-        StateDriver<T>(driver.publisher.map(selector).asDriver())
+        upstream.map(selector).asState()
 	}
 }
 
@@ -64,7 +67,7 @@ extension StateDriver {
 	}
 	
 	public func skipEqual(_ comparor: @escaping (Output, Output) -> (Bool)) -> StateDriver {
-        StateDriver(driver.publisher.removeDuplicates(by: comparor).asDriver())
+        upstream.removeDuplicates(by: comparor).asState()
 	}
 	
 }
