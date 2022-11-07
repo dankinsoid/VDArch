@@ -56,7 +56,14 @@ extension ViewProtocol {
 	}
 	
 	public func bind(source: some Publisher<Properties, Never>, observer: some Subscriber<Events, Never>) -> AnyCancellable {
-		AnyCancellable(bind(state: source.asState()), events.sink(observer))
+		AnyCancellable(
+            bind(state: source.asState()),
+            events.sink {
+                observer.receive(completion: $0)
+            } receiveValue: {
+                _ = observer.receive($0)
+            }
+        )
 	}
 }
 

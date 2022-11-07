@@ -38,6 +38,11 @@ public enum CancellableBuilder {
     public static func buildExpression(_ expression: AnyCancellable) -> AnyCancellable {
         expression
     }
+   
+    @inlinable
+    public static func buildExpression(_ expression: Void) -> AnyCancellable {
+        AnyCancellable()
+    }
     
     @inlinable
     public static func buildExpression(_ expression: any Cancellable) -> AnyCancellable {
