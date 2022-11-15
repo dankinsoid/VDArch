@@ -15,7 +15,7 @@ let package = Package(
         )
     ],
     dependencies: [
-        .package(url: "https://github.com/dankinsoid/CombineOperators.git", from: "2.2.0"),
+        .package(url: "https://github.com/dankinsoid/CombineOperators.git", from: "2.3.0"),
         .package(url: "https://github.com/pointfreeco/swift-composable-architecture", from: "0.43.0")
     ],
     targets: [
