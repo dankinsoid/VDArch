@@ -2,82 +2,88 @@ import Combine
 import CombineCocoa
 import CombineOperators
 
+@available(iOS 13.0, *)
+@available(iOS, deprecated, message: "use StatePublisher")
+public typealias StateDriver<T> = StatePublisher<T>
+
+@available(iOS 13.0, *)
 @dynamicMemberLookup
-public struct StateDriver<Output>: Publisher {
-    public typealias Failure = Never
-    public let driver: Driver<Output>
-    public var upstream: AnyPublisher<Output, Never> {
-        driver.publisher
-    }
+public struct StatePublisher<Output>: Publisher {
+    
+	public typealias Failure = Never
+  public let upstream: AnyPublisher<Output, Never>
 	
-	public init(_ driver: Driver<Output>) {
-		self.driver = driver
+	public init<P: Publisher>(_ publisher: P) where P.Output == Output {
+		self.upstream = publisher.skipFailure().any()
+	}
+	
+	public init(state: StatePublisher<Output>) {
+		self.upstream = state.upstream
 	}
 	
 	public init(just: Output) {
-		self.driver = Just(just).asDriver()
+		self = StatePublisher(Just(just))
 	}
 	
-	public subscript<T>(dynamicMember keyPath: KeyPath<Output, T>) -> StateDriver<T> {
+	public subscript<T>(dynamicMember keyPath: KeyPath<Output, T>) -> StatePublisher<T> {
         map { $0[keyPath: keyPath] }
 	}
 	
-	public func map<T>(_ selector: @escaping (Output) -> T) -> StateDriver<T> {
+	public func map<T>(_ selector: @escaping (Output) -> T) -> StatePublisher<T> {
         upstream.map(selector).asState()
 	}
 	
-	public func compactMap<T>(_ selector: @escaping (Output) -> T?) -> StateDriver<T> {
+	public func compactMap<T>(_ selector: @escaping (Output) -> T?) -> StatePublisher<T> {
         upstream.compactMap(selector).asState()
 	}
 	
     public func receive<S>(subscriber: S) where S : Subscriber, Never == S.Failure, Output == S.Input {
-        driver.receive(subscriber: subscriber)
+        upstream.receive(subscriber: subscriber)
     }
 }
 
-extension StateDriver where Output: Equatable {
+extension StatePublisher where Output: Equatable {
 	
-	public func skipEqual() -> StateDriver {
-        StateDriver(driver.publisher.removeDuplicates().asDriver())
+	public func skipEqual() -> StatePublisher {
+      StatePublisher(upstream.removeDuplicates())
 	}
 }
 
-extension StateDriver {
+extension StatePublisher {
 	
-	public subscript<A, T>(dynamicMember keyPath: KeyPath<A, T>) -> StateDriver<T?> where A? == Output {
-        map { $0?[keyPath: keyPath] }
-	}
-	
-    public subscript<A, T>(dynamicMember keyPath: KeyPath<A, T?>) -> StateDriver<T?> where A? == Output {
+    public func asState() -> StatePublisher<Output> {
+        self
+    }
+
+    public subscript<A, T>(dynamicMember keyPath: KeyPath<A, T?>) -> StatePublisher<T?> where A? == Output {
         map { $0?[keyPath: keyPath] }
     }
 }
 
-extension StateDriver where Output == Void {
+@available(iOS 13.0, *)
+extension StatePublisher where Output == Void {
 	
-	public func map<T>(_ selector: @escaping () -> T) -> StateDriver<T> {
-        upstream.map(selector).asState()
+	public func map<T>(_ selector: @escaping () -> T) -> StatePublisher<T> {
+    upstream.map(selector).asState()
 	}
 }
 
-extension StateDriver {
+extension StatePublisher {
 	
-	public func skipEqual<E: Equatable>(by keyPath: KeyPath<Output, E>) -> StateDriver {
-        skipEqual { $0[keyPath: keyPath] == $1[keyPath: keyPath] }
+	public func skipEqual<E: Equatable>(by keyPath: KeyPath<Output, E>) -> StatePublisher {
+    skipEqual { $0[keyPath: keyPath] == $1[keyPath: keyPath] }
 	}
 	
-	public func skipEqual(_ comparor: @escaping (Output, Output) -> (Bool)) -> StateDriver {
-        upstream.removeDuplicates(by: comparor).asState()
+	public func skipEqual(_ comparator: @escaping (Output, Output) -> (Bool)) -> StatePublisher {
+    upstream.removeDuplicates(by: comparator).asState()
 	}
-	
 }
 
 extension Publisher {
 	
-	public func asState() -> StateDriver<Output> {
-		StateDriver(asDriver())
+	public func asState() -> StatePublisher<Output> {
+      StatePublisher(self)
 	}
-	
 }
 
 public func =><V: ViewProtocol>(_ lhs: some Publisher<V.Properties, Never>, _ rhs: Reactive<V>) -> AnyCancellable {

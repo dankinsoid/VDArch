@@ -5,14 +5,14 @@ import ComposableArchitecture
 
 public protocol ViewProtocol {
     
-    associatedtype Properties: Equatable
+	associatedtype Properties: Equatable
 	associatedtype Events
-    associatedtype EventsPublisher: Publisher<Events, Never>
+	associatedtype EventsPublisher: Publisher<Events, Never>
 	typealias EventsBuilder = ObservableBuilder<Events, Never>
-    @EventsBuilder
+	@EventsBuilder
 	var events: EventsPublisher { get }
-    @CancellableBuilder
-	func bind(state: StateDriver<Properties>) -> AnyCancellable
+	@CancellableBuilder
+	func bind(state: StatePublisher<Properties>) -> AnyCancellable
 }
 
 public protocol ViewModelProtocol {
@@ -40,9 +40,9 @@ extension ViewProtocol {
         let viewStore = ViewStore(store) {
             viewModel.map(state: $0)
         }
-        let driver = viewStore.publisher.asDriver()
+        let driver = viewStore.publisher.receive(on: RunLoop.main)
         return .create {
-            bind(state: StateDriver(driver))
+            bind(state: StatePublisher(driver))
             events.sink { action in
                 if let event = viewModel.map(event: action, state: ViewStore(store).state) {
                     viewStore.send(event)
@@ -52,12 +52,12 @@ extension ViewProtocol {
 	}
 	
 	public func bind(_ state: some Publisher<Properties, Never>) -> AnyCancellable {
-        bind(state: state.asState())
+      bind(state: state.receive(on: RunLoop.main).asState())
 	}
 	
 	public func bind(source: some Publisher<Properties, Never>, observer: some Subscriber<Events, Never>) -> AnyCancellable {
 		AnyCancellable(
-            bind(state: source.asState()),
+        		bind(state: source.receive(on: RunLoop.main).asState()),
             events.sink {
                 observer.receive(completion: $0)
             } receiveValue: {
@@ -86,7 +86,6 @@ extension ViewProtocol where Self: AnyObject {
 		}
 		set {}
 	}
-	
 }
 
 private var propertiesSubjectKey = "_propertiesSubject"
