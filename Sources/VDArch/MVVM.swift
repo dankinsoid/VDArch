@@ -40,7 +40,7 @@ extension ViewProtocol {
         let viewStore = ViewStore(store) {
             viewModel.map(state: $0)
         }
-        let driver = viewStore.publisher.receive(on: RunLoop.main)
+        let driver = viewStore.publisher.removeDuplicates().receive(on: RunLoop.main)
         return .create {
             bind(state: StatePublisher(driver))
             events.sink { action in
@@ -52,12 +52,12 @@ extension ViewProtocol {
 	}
 	
 	public func bind(_ state: some Publisher<Properties, Never>) -> AnyCancellable {
-      bind(state: state.receive(on: RunLoop.main).asState())
+      bind(state: state.removeDuplicates().receive(on: RunLoop.main).asState())
 	}
 	
 	public func bind(source: some Publisher<Properties, Never>, observer: some Subscriber<Events, Never>) -> AnyCancellable {
 		AnyCancellable(
-        		bind(state: source.receive(on: RunLoop.main).asState()),
+        		bind(state: source.removeDuplicates().receive(on: RunLoop.main).asState()),
             events.sink {
                 observer.receive(completion: $0)
             } receiveValue: {
